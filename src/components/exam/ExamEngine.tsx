@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { MockQuestion, QuestionStatus, mockSubjects } from "@/lib/mockExamData";
-import { UserCircle2, ChevronRight, X, AlertCircle, CheckCircle2, Bookmark, BookmarkCheck, ZoomIn, ZoomOut, Type } from "lucide-react";
+import { UserCircle2, ChevronRight, X, AlertCircle, CheckCircle2, Bookmark, BookmarkCheck, ZoomIn, ZoomOut, Type, LayoutGrid } from "lucide-react";
 
 // Mock objection record for local preview state
 interface ObjectionRecord {
@@ -39,6 +39,8 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
   // Submit modal
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  // Mobile Palette Toggle
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   // --- Objection modal state ---
   const [objectionOpen, setObjectionOpen] = useState(false);
@@ -243,6 +245,9 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
     answered_marked: Object.values(statuses).filter(s => s === "answered_marked").length,
   };
 
+  // Derive unique subjects from questions (works for any number of subjects)
+  const uniqueSubjects = Array.from(new Set(questions.map(q => q.subject)));
+
   const getShapeClasses = (status?: QuestionStatus) => {
     const base = "shadow-md transition-all duration-300 hover:scale-[1.15] hover:shadow-lg active:scale-95";
     switch (status) {
@@ -294,9 +299,9 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
   return (
     <div className={`flex flex-col h-screen bg-slate-50 font-sans text-sm overflow-hidden ${magnifierOn ? "[zoom:1.08]" : ""}`}>
       {/* Cinematic Dark Header */}
-      <header className="flex justify-between items-center px-6 py-3 bg-slate-900 border-b border-slate-800 shadow-[0_4px_20px_rgba(0,0,0,0.2)] z-20 relative">
-        <h1 className="font-extrabold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-amber-400 to-yellow-200">
-          PANTHER LAW PREP <span className="font-medium text-slate-400 text-sm ml-2 tracking-normal">| AIBE MOCK TEST 2026</span>
+      <header className="flex justify-between items-center px-4 md:px-6 py-3 bg-slate-900 border-b border-slate-800 shadow-[0_4px_20px_rgba(0,0,0,0.2)] z-30 relative">
+        <h1 className="font-extrabold text-base md:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-amber-400 to-yellow-200 truncate pr-2">
+          PANTHER LAW PREP <span className="font-medium text-slate-400 text-xs md:text-sm ml-1 md:ml-2 tracking-normal hidden sm:inline">| AIBE MOCK TEST 2026</span>
         </h1>
         <div className="flex gap-2 items-center">
           {/* Font size accessibility controls */}
@@ -319,13 +324,21 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
           <button
             onClick={() => setMagnifierOn(m => !m)}
             title={magnifierOn ? "Disable magnifier" : "Enable magnifier (zoom)"}
-            className={`flex items-center gap-2 text-xs px-4 py-1.5 rounded-full font-semibold border transition-colors ${
+            className={`hidden sm:flex items-center gap-2 text-xs px-4 py-1.5 rounded-full font-semibold border transition-colors ${
               magnifierOn
                 ? "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
                 : "bg-slate-800/80 text-slate-300 border-slate-700/50 hover:bg-slate-700"
             }`}
           >
             <Type size={13} /> {magnifierOn ? "Magnifier ON" : "Magnifier"}
+          </button>
+          
+          {/* Mobile Palette Toggle */}
+          <button 
+            className="lg:hidden flex items-center justify-center w-8 h-8 rounded-full bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600/30 ml-2"
+            onClick={() => setPaletteOpen(o => !o)}
+          >
+            {paletteOpen ? <X size={16} /> : <LayoutGrid size={16} />}
           </button>
         </div>
       </header>
@@ -334,47 +347,47 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
       <div className="flex flex-1 overflow-hidden relative">
         
         {/* Left Side: Question Panel */}
-        <div className="flex-1 flex flex-col bg-white border-r border-slate-200/60 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative">
+        <div className="flex-1 flex flex-col bg-white border-r border-slate-200/60 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 relative overflow-hidden">
           
           {/* Clean Info + Timer Bar (replaces subject tabs) */}
-          <div className="flex items-center justify-between px-6 py-2.5 border-b border-slate-100 bg-slate-50/60">
-            <div className="flex items-center gap-3 text-sm text-slate-500">
-              <span className="font-bold text-slate-800 text-base">AIBE 2026</span>
-              <span className="w-px h-4 bg-slate-300" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-2.5 border-b border-slate-100 bg-slate-50/60 gap-3 sm:gap-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-slate-500">
+              <span className="font-bold text-slate-800 text-sm sm:text-base hidden sm:inline">AIBE 2026</span>
+              <span className="hidden sm:inline w-px h-4 bg-slate-300" />
               <span className="font-medium">
                 Question <span className="font-bold text-slate-800">{currentQuestion.order}</span>
                 <span className="text-slate-400"> / {questions.length}</span>
               </span>
               <span className="w-px h-4 bg-slate-300" />
-              <span className="text-xs bg-slate-100 text-slate-600 font-semibold px-3 py-1 rounded-full border border-slate-200">
+              <span className="text-[10px] sm:text-xs bg-slate-100 text-slate-600 font-semibold px-2 sm:px-3 py-1 rounded-full border border-slate-200 truncate max-w-[150px] sm:max-w-none">
                 {currentQuestion.subject}
               </span>
             </div>
-            <div className="font-bold text-slate-700 whitespace-nowrap px-5 py-1.5 bg-white rounded-full border border-slate-200 shadow-sm flex items-center gap-2">
+            <div className="self-start sm:self-auto font-bold text-slate-700 whitespace-nowrap px-4 sm:px-5 py-1.5 bg-white rounded-full border border-slate-200 shadow-sm flex items-center gap-2 text-sm">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Time Left : <span className="font-mono text-blue-700">{formatTime(timeLeft)}</span>
+              Time : <span className="font-mono text-blue-700">{formatTime(timeLeft)}</span>
             </div>
           </div>
 
           {/* Question Meta Bar */}
-          <div className="flex justify-between items-center px-8 py-3 border-b border-slate-100 bg-white text-sm">
-            <div className="text-slate-500 font-medium">
-              Question Type: <span className="font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-md ml-2">Multiple Choice</span>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center px-4 sm:px-8 py-2 sm:py-3 border-b border-slate-100 bg-white text-xs sm:text-sm gap-2 sm:gap-0">
+            <div className="text-slate-500 font-medium flex items-center">
+              Type: <span className="font-bold text-slate-800 bg-slate-100 px-2 sm:px-3 py-0.5 sm:py-1 rounded-md ml-2">MCQ</span>
             </div>
-            <div className="text-slate-500 font-medium flex items-center gap-3">
-              Marks for correct answer: <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">+1</span> 
+            <div className="text-slate-500 font-medium flex items-center gap-2 sm:gap-3">
+              Marks: <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">+1</span> 
               <span className="w-px h-4 bg-slate-300"></span> 
-              Negative Marks: <span className="text-red-500 font-bold bg-red-50 px-2 py-0.5 rounded">0</span>
+              Negative: <span className="text-red-500 font-bold bg-red-50 px-2 py-0.5 rounded">0</span>
             </div>
           </div>
 
-          <div className="flex justify-between items-center px-8 py-4 border-b border-slate-100 bg-slate-50/50">
-            <div className="flex items-center gap-4">
-              <h2 className="font-extrabold text-slate-800 text-2xl tracking-tight">Question {currentQuestion.order}</h2>
+          <div className="flex justify-between items-start sm:items-center px-4 sm:px-8 py-3 sm:py-4 border-b border-slate-100 bg-slate-50/50 flex-col sm:flex-row gap-3 sm:gap-0">
+            <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-start">
+              <h2 className="font-extrabold text-slate-800 text-xl sm:text-2xl tracking-tight">Question {currentQuestion.order}</h2>
               <button
                 onClick={toggleBookmark}
                 title={isBookmarked ? "Remove bookmark" : "Bookmark this question"}
-                className={`flex items-center gap-1.5 border px-4 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm ${
+                className={`flex items-center gap-1.5 border px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm ${
                   isBookmarked
                     ? "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100"
                     : "bg-white border-slate-200 text-slate-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
@@ -387,7 +400,7 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
           </div>
 
           {/* Question Body */}
-          <div className="flex-1 overflow-y-auto p-10 bg-white">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-10 bg-white">
             {timeExpired && (
               <div className="mb-6 flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-5 py-3 font-semibold text-sm">
                 <AlertCircle size={16} /> Time is up! You can no longer change your answers.
@@ -405,7 +418,7 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
                   <label
                     key={option.key}
                     htmlFor={`opt-${currentQuestion.id}-${option.key}`}
-                    className={`flex items-start gap-5 p-5 rounded-2xl border-2 transition-all duration-200 ease-in-out group ${
+                    className={`flex items-start gap-4 sm:gap-5 p-4 sm:p-5 rounded-xl sm:rounded-2xl border-2 transition-all duration-200 ease-in-out group ${
                       disabled ? "cursor-not-allowed opacity-75" : "cursor-pointer"
                     } ${
                       isSelected
@@ -444,17 +457,17 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
 
 
           {/* Premium Action Footer */}
-          <div className="p-5 bg-white/80 backdrop-blur-xl border-t border-slate-200 flex flex-wrap gap-3 justify-between items-center shadow-[0_-8px_30px_rgba(0,0,0,0.03)] z-20">
-            <div className="flex gap-3 flex-wrap">
+          <div className="p-3 sm:p-5 bg-white/95 backdrop-blur-xl border-t border-slate-200 flex flex-col md:flex-row gap-3 justify-between items-stretch md:items-center shadow-[0_-8px_30px_rgba(0,0,0,0.03)] z-20">
+            <div className="flex gap-2 sm:gap-3 flex-wrap justify-center md:justify-start">
               <button 
                 onClick={handleMarkAndNext} 
-                className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold py-3 px-6 rounded-xl text-sm shadow-sm transition-all hover:border-purple-300 hover:text-purple-700 active:scale-95"
+                className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold py-2 px-3 sm:py-3 sm:px-6 rounded-lg sm:rounded-xl text-xs sm:text-sm shadow-sm transition-all hover:border-purple-300 hover:text-purple-700 active:scale-95 flex-1 md:flex-none text-center"
               >
                 Mark for Review &amp; Next
               </button>
               <button 
                 onClick={handleClearResponse} 
-                className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold py-3 px-6 rounded-xl text-sm shadow-sm transition-all hover:border-red-300 hover:text-red-600 active:scale-95"
+                className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold py-2 px-3 sm:py-3 sm:px-6 rounded-lg sm:rounded-xl text-xs sm:text-sm shadow-sm transition-all hover:border-red-300 hover:text-red-600 active:scale-95 flex-1 md:flex-none text-center"
               >
                 Clear Response
               </button>
@@ -462,7 +475,7 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
               <button
                 id="btn-raise-objection"
                 onClick={openObjectionModal}
-                className={`relative font-semibold py-3 px-6 rounded-xl text-sm shadow-sm transition-all active:scale-95 border ${
+                className={`relative font-semibold py-2 px-3 sm:py-3 sm:px-6 rounded-lg sm:rounded-xl text-xs sm:text-sm shadow-sm transition-all active:scale-95 border flex-1 md:flex-none text-center ${
                   hasExistingObjection
                     ? "bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100"
                     : "bg-white border-slate-200 text-slate-700 hover:border-orange-300 hover:text-orange-600 hover:bg-orange-50"
@@ -476,16 +489,16 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
               </button>
             </div>
             
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3 mt-1 md:mt-0">
               <button 
                 onClick={handleSaveAndNext} 
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 px-8 rounded-xl shadow-[0_4px_14px_rgba(37,99,235,0.3)] transition-all active:scale-95 flex items-center gap-2"
+                className="flex-1 md:flex-none justify-center bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-2 sm:py-3 px-4 sm:px-8 rounded-lg sm:rounded-xl shadow-[0_4px_14px_rgba(37,99,235,0.3)] transition-all active:scale-95 flex items-center gap-1 sm:gap-2 text-sm"
               >
                 Save &amp; Next <ChevronRight size={18} strokeWidth={3} />
               </button>
               <button
                 onClick={() => setSubmitOpen(true)}
-                className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-8 rounded-xl shadow-md transition-all active:scale-95"
+                className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 sm:py-3 px-6 sm:px-8 rounded-lg sm:rounded-xl shadow-md transition-all active:scale-95 text-sm"
               >
                 Submit
               </button>
@@ -493,8 +506,18 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
           </div>
         </div>
 
-        {/* Right Panel: Palette & Status (Cinematic & Clean) */}
-        <div className="w-[340px] flex flex-col bg-slate-50/80 backdrop-blur-3xl border-l border-slate-200/50 z-0">
+        {/* Right Panel: Palette & Status (Responsive Drawer / Sidebar) */}
+        {/* Dark overlay for mobile when palette is open */}
+        {paletteOpen && (
+          <div 
+            className="fixed inset-0 bg-black/40 z-30 lg:hidden backdrop-blur-sm"
+            onClick={() => setPaletteOpen(false)}
+          />
+        )}
+        
+        <div className={`fixed lg:relative right-0 top-0 lg:top-auto h-full lg:h-auto w-[300px] sm:w-[340px] flex flex-col bg-slate-50/95 lg:bg-slate-50/80 backdrop-blur-3xl lg:border-l border-slate-200/50 z-40 lg:z-0 transition-transform duration-300 transform shadow-2xl lg:shadow-none ${
+          paletteOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
+        }`}>
           
           {/* Candidate Profile Area */}
           <div className="bg-white/60 p-6 flex gap-5 items-center border-b border-slate-200 shadow-sm">
@@ -541,10 +564,30 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
             </div>
           </div>
 
-          {/* Subject Header */}
-          <div className="bg-slate-800 text-white font-bold text-sm px-6 py-3 shadow-sm flex items-center justify-between">
-            <span className="uppercase tracking-widest">{activeSubject}</span>
-            <span className="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300">
+          {/* Subject Dropdown */}
+          <div className="bg-slate-800 px-4 py-2.5 shadow-sm flex items-center gap-3">
+            <label htmlFor="subject-select" className="text-slate-400 text-xs font-semibold uppercase tracking-widest shrink-0">
+              Subject
+            </label>
+            <div className="relative flex-1">
+              <select
+                id="subject-select"
+                value={activeSubject}
+                onChange={e => setActiveSubject(e.target.value)}
+                className="w-full appearance-none bg-slate-700 text-white text-sm font-semibold px-3 py-1.5 pr-8 rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer truncate"
+              >
+                {uniqueSubjects.map(subject => (
+                  <option key={subject} value={subject}>{subject}</option>
+                ))}
+              </select>
+              {/* Custom chevron */}
+              <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+                <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+            <span className="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300 shrink-0 font-semibold">
               {questions.filter(q => q.subject === activeSubject).length} Qs
             </span>
           </div>

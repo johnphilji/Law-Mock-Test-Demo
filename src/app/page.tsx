@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import "./landing.css";
 
 export default function Home() {
   const router = useRouter();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const handlePay = () => {
     // Navigates directly to the Exam Engine preview as requested
@@ -34,6 +36,21 @@ export default function Home() {
             <button className="btn btn-ghost btn-sm">Log in</button>
             <button className="btn btn-primary btn-sm" onClick={handlePay}>Sign up</button>
           </div>
+          <button
+            className="nav-menu-toggle"
+            aria-label="Toggle menu"
+            onClick={() => setMobileNavOpen(o => !o)}
+          >
+            <span /><span /><span />
+          </button>
+        </div>
+        <div className={`mobile-nav${mobileNavOpen ? " open" : ""}`}>
+          <a onClick={() => { window.scrollTo(0,0); setMobileNavOpen(false); }}>Home</a>
+          <a href="#features" onClick={() => setMobileNavOpen(false)}>Test Series</a>
+          <a href="#pricing" onClick={() => setMobileNavOpen(false)}>Pricing</a>
+          <a href="#faq" onClick={() => setMobileNavOpen(false)}>FAQ</a>
+          <button className="btn btn-ghost btn-sm" style={{margin:"8px 24px 0"}}>Log in</button>
+          <button className="btn btn-primary btn-sm" style={{margin:"8px 24px 0"}} onClick={handlePay}>Sign up</button>
         </div>
       </nav>
 
