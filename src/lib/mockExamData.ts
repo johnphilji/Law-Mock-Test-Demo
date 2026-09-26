@@ -94,7 +94,9 @@ const lawQuestions = [
 ];
 
 export const mockQuestions: MockQuestion[] = Array.from({ length: 100 }).map((_, i) => {
-  const qTemplate = lawQuestions[i % lawQuestions.length];
+  // Modulo guarantees index is always in bounds — non-null assertion is safe here
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const qTemplate = lawQuestions[i % lawQuestions.length]!;
   
   // Distribute sequentially among subjects
   const subjectIndex = Math.floor(i / 25);
@@ -102,8 +104,10 @@ export const mockQuestions: MockQuestion[] = Array.from({ length: 100 }).map((_,
   
   // Find a template question matching the forced subject, or fallback
   const matchingTemplates = lawQuestions.filter(q => q.subject === forcedSubject);
-  const finalTemplate = matchingTemplates.length > 0 
-    ? matchingTemplates[i % matchingTemplates.length] 
+  // Modulo guarantees index is in bounds; fallback to qTemplate if empty
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const finalTemplate = matchingTemplates.length > 0
+    ? matchingTemplates[i % matchingTemplates.length]!
     : qTemplate;
 
   return {
