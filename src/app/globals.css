@@ -1,47 +1,112 @@
 @import "tailwindcss";
 
+/* =============================================================================
+   DESIGN TOKENS — Panther Law Prep
+   Professional, institutional, examination-oriented palette.
+   ============================================================================= */
+
 @theme {
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
-  --color-brand-500: #3b82f6; /* Premium Panther Blue */
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-brand-800: #1e40af;
-  --color-brand-900: #1e3a8a;
+  /* Brand — Deep navy/slate tones, not flashy */
+  --color-brand-50: #f0f4f8;
+  --color-brand-100: #d9e2ec;
+  --color-brand-200: #bcccdc;
+  --color-brand-300: #9fb3c8;
+  --color-brand-400: #829ab1;
+  --color-brand-500: #627d98;
+  --color-brand-600: #486581;
+  --color-brand-700: #334e68;
+  --color-brand-800: #243b53;
+  --color-brand-900: #102a43;
 
-  --color-nta-orange: #f39c12;
-  --color-nta-blue: #2980b9;
-  
-  --color-status-not-visited: #ecf0f1;
-  --color-status-not-answered: #e74c3c;
-  --color-status-answered: #27ae60;
-  --color-status-marked: #8e44ad;
+  /* Accent — Muted gold for key interactions */
+  --color-accent-50: #fffbea;
+  --color-accent-100: #fff3c4;
+  --color-accent-200: #fce588;
+  --color-accent-300: #fadb5f;
+  --color-accent-400: #f7c948;
+  --color-accent-500: #f0b429;
+  --color-accent-600: #de911d;
+  --color-accent-700: #cb6e17;
+  --color-accent-800: #b44d12;
+  --color-accent-900: #8d2b0b;
 
-  --font-sans: "Inter", system-ui, sans-serif;
-  --font-mono: "Fira Code", monospace;
+  /* Success */
+  --color-success-50: #e3f9e5;
+  --color-success-100: #c1eac5;
+  --color-success-200: #a3d9a5;
+  --color-success-300: #7bc47f;
+  --color-success-400: #57ae5b;
+  --color-success-500: #3f9142;
+  --color-success-600: #2f8132;
+  --color-success-700: #207227;
+  --color-success-800: #0e5814;
+  --color-success-900: #05400a;
 
-  --animate-fade-in: fadeIn 0.3s ease-in-out;
-  --animate-slide-up: slideUp 0.4s ease-out;
+  /* Warning */
+  --color-warning-50: #fffbea;
+  --color-warning-100: #fff3c4;
+  --color-warning-200: #fce588;
+  --color-warning-300: #fadb5f;
+  --color-warning-400: #f7c948;
+  --color-warning-500: #f0b429;
+  --color-warning-600: #de911d;
+
+  /* Error / Danger */
+  --color-danger-50: #ffe3e3;
+  --color-danger-100: #ffbdbd;
+  --color-danger-200: #ff9b9b;
+  --color-danger-300: #f86a6a;
+  --color-danger-400: #ef4e4e;
+  --color-danger-500: #e12d39;
+  --color-danger-600: #cf1124;
+  --color-danger-700: #ab091e;
+  --color-danger-800: #8a041a;
+  --color-danger-900: #610316;
+
+  /* Exam status palette */
+  --color-status-not-visited: #e2e8f0;
+  --color-status-not-answered: #e12d39;
+  --color-status-answered: #3f9142;
+  --color-status-marked: #6b46c1;
+
+  /* Typography */
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* Subtle animation */
+  --animate-fade-in: fadeIn 0.2s ease-out;
+  --animate-slide-up: slideUp 0.25s ease-out;
+  --animate-slide-down: slideDown 0.25s ease-out;
 }
+
+/* =============================================================================
+   BASE LAYER
+   ============================================================================= */
 
 @layer base {
   :root {
     --background: #ffffff;
-    --foreground: #0f172a;
-    --muted: #f8fafc;
-    --muted-foreground: #64748b;
-    --border: #e2e8f0;
-  }
-
-  .dark {
-    --background: #0f172a;
-    --foreground: #f8fafc;
-    --muted: #1e293b;
-    --muted-foreground: #94a3b8;
-    --border: #334155;
+    --foreground: #102a43;
+    --muted: #f0f4f8;
+    --muted-foreground: #627d98;
+    --border: #d9e2ec;
+    --border-strong: #bcccdc;
+    --input-bg: #ffffff;
+    --card-bg: #ffffff;
+    --sidebar-bg: #102a43;
+    --sidebar-text: #d9e2ec;
+    --sidebar-text-active: #ffffff;
+    --sidebar-accent: #f0b429;
+    --sidebar-hover: #243b53;
+    --radius-sm: 4px;
+    --radius: 6px;
+    --radius-lg: 8px;
+    --shadow-sm: 0 1px 2px rgba(16, 42, 67, 0.06);
+    --shadow: 0 1px 3px rgba(16, 42, 67, 0.08), 0 1px 2px rgba(16, 42, 67, 0.06);
+    --shadow-md: 0 4px 6px rgba(16, 42, 67, 0.07), 0 2px 4px rgba(16, 42, 67, 0.06);
+    --shadow-lg: 0 10px 15px rgba(16, 42, 67, 0.06), 0 4px 6px rgba(16, 42, 67, 0.05);
+    --transition-fast: 150ms ease;
+    --transition: 200ms ease;
   }
 
   body {
@@ -49,8 +114,30 @@
     color: var(--foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
+    font-size: 14px;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  ::selection {
+    background-color: var(--color-brand-200);
+    color: var(--color-brand-900);
+  }
+
+  /* Focus visible for keyboard users */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
   }
 }
+
+/* =============================================================================
+   KEYFRAMES
+   ============================================================================= */
 
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -58,14 +145,32 @@
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Scrollbar styling for modern look */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* =============================================================================
+   SCROLLBAR
+   ============================================================================= */
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;

@@ -9,8 +9,11 @@ export default function Home() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const handlePay = () => {
-    // Navigates directly to the Exam Engine preview as requested
-    router.push("/test/mock-1");
+    router.push("/login");
+  };
+
+  const handleLogin = () => {
+    router.push("/login");
   };
 
   return (
@@ -33,7 +36,7 @@ export default function Home() {
             <a href="#faq">FAQ</a>
           </div>
           <div className="nav-cta">
-            <button className="btn btn-ghost btn-sm">Log in</button>
+            <button className="btn btn-ghost btn-sm" onClick={handleLogin}>Log in</button>
             <button className="btn btn-primary btn-sm" onClick={handlePay}>Sign up</button>
           </div>
           <button
@@ -49,7 +52,7 @@ export default function Home() {
           <a href="#features" onClick={() => setMobileNavOpen(false)}>Test Series</a>
           <a href="#pricing" onClick={() => setMobileNavOpen(false)}>Pricing</a>
           <a href="#faq" onClick={() => setMobileNavOpen(false)}>FAQ</a>
-          <button className="btn btn-ghost btn-sm" style={{margin:"8px 24px 0"}}>Log in</button>
+          <button className="btn btn-ghost btn-sm" style={{margin:"8px 24px 0"}} onClick={handleLogin}>Log in</button>
           <button className="btn btn-primary btn-sm" style={{margin:"8px 24px 0"}} onClick={handlePay}>Sign up</button>
         </div>
       </nav>
