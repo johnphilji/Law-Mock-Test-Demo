@@ -4,16 +4,12 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
-
-    // Strict mode is non-negotiable for a production application.
-    // Every file must be fully typed. No implicit any, no loose nullability.
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "exactOptionalPropertyTypes": false,
-
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -22,13 +18,11 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-
     "plugins": [
       {
         "name": "next"
       }
     ],
-
     "paths": {
       "@/*": ["./src/*"]
     }
@@ -41,5 +35,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "e2e", "tests"]
+  "exclude": ["node_modules", "e2e"]
 }
