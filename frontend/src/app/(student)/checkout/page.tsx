@@ -1,24 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { 
   ShieldCheck, 
   CreditCard, 
   Lock, 
   CheckCircle2, 
-  AlertCircle, 
   Trash2,
   ArrowRight,
-  Sparkles,
   QrCode
 } from "lucide-react";
 import { mockTests } from "@/lib/mock-data";
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   
   const testIdParam = searchParams.get("testId");
   const cartParam = searchParams.get("cart");
@@ -267,5 +264,17 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="py-12 text-center text-sm text-slate-500">
+        Loading checkout session...
+      </div>
+    }>
+      <CheckoutContent />
+    </Suspense>
   );
 }

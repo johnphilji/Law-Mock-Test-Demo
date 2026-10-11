@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FileText, BookOpen, ClipboardList,
   Users, CreditCard, Key, AlertCircle, BarChart3,
   Headphones, Megaphone, Shield, Settings, LogOut,
-  ChevronDown, ChevronRight, Menu, X, Upload,
+  ChevronDown, ChevronRight, Menu, X,
   PanelLeftClose, PanelLeft,
 } from "lucide-react";
 

@@ -69,20 +69,22 @@ Input.displayName = "Input";
 export interface PasswordInputProps extends Omit<InputProps, "type"> {}
 
 const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
-  ({ className, ...props }, ref) => {
+  ({ className, label, error, hint, id, required, ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false);
 
     return (
       <div className="space-y-1.5">
-        {props.label && (
-          <label htmlFor={props.id} className="block text-sm font-medium text-foreground">
-            {props.label}
-            {props.required && <span className="ml-0.5 text-danger-500">*</span>}
+        {label && (
+          <label htmlFor={id} className="block text-sm font-medium text-foreground">
+            {label}
+            {required && <span className="ml-0.5 text-danger-500">*</span>}
           </label>
         )}
         <div className="relative">
           <input
             ref={ref}
+            id={id}
+            required={required}
             type={showPassword ? "text" : "password"}
             className={cn(
               "flex h-9 w-full rounded-md border bg-white px-3 py-2 pr-10 text-sm",
@@ -90,14 +92,13 @@ const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
               "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
               "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-muted",
               "transition-colors duration-150",
-              props.error
+              error
                 ? "border-danger-400 focus:ring-danger-500/30 focus:border-danger-500"
                 : "border-border",
               className,
             )}
-            aria-invalid={props.error ? "true" : undefined}
+            aria-invalid={error ? "true" : undefined}
             {...props}
-            label={undefined}
           />
           <button
             type="button"
@@ -109,14 +110,14 @@ const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
-        {props.error && (
+        {error && (
           <p className="text-xs text-danger-600" role="alert">
-            {props.error}
+            {error}
           </p>
         )}
-        {!props.error && props.hint && (
+        {!error && hint && (
           <p className="text-xs text-muted-foreground">
-            {props.hint}
+            {hint}
           </p>
         )}
       </div>

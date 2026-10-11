@@ -1,0 +1,3 @@
+module.exports=[11096,a=>{"use strict";var b=a.i(87924),c=a.i(72131),d=a.i(47837),e=a.i(4354),f=a.i(65731);a.s(["default",0,function({params:a}){let g=(0,c.use)(a),h=e.mockQuestions.find(a=>a.id===g.id);return h?(0,b.jsx)(d.QuestionEditor,{initialData:h}):(0,b.jsxs)("div",{className:"space-y-5",children:[(0,b.jsx)(f.Breadcrumbs,{items:[{label:"Admin",href:"/admin"},{label:"Question Bank",href:"/admin/questions"},{label:"Not Found"}]}),(0,b.jsx)(f.EmptyState,{title:"Question not found",description:"The question you are looking for does not exist or has been deleted."})]})}])}];
+
+//# sourceMappingURL=frontend_src_app_admin_%28portal%29_questions_%5Bid%5D_page_tsx_0hvpsc0._.js.map

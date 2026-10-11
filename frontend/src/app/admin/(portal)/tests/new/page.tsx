@@ -8,14 +8,10 @@ import {
   Save, 
   Plus, 
   Trash2, 
-  Clock, 
   Settings, 
   FileCheck, 
-  Award, 
-  HelpCircle,
-  AlertCircle
+  Award
 } from "lucide-react";
-import { mockSubjects, mockQuestions } from "@/lib/mock-data";
 
 export default function NewTestBuilderPage() {
   const router = useRouter();
@@ -32,7 +28,6 @@ export default function NewTestBuilderPage() {
   // Marking scheme
   const [correctMarks, setCorrectMarks] = useState(1.0);
   const [negativeMarks, setNegativeMarks] = useState(0.25);
-  const [hasNegativeMarking, setHasNegativeMarking] = useState(true);
 
   // Sections
   const [sections, setSections] = useState([

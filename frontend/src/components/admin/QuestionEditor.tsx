@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, Breadcrumbs, ConfirmDialog } from "@/components/ui/components";
 import { Input, Select, Textarea, Checkbox } from "@/components/ui/input";
-import { mockSubjects, type MockQuestion, type MockQuestionVersion } from "@/lib/mock-data";
-import { Save, Plus, Trash2, ArrowLeft, GripVertical } from "lucide-react";
+import { mockSubjects, type MockQuestion } from "@/lib/mock-data";
+import { Save, Plus, Trash2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 interface QuestionEditorProps {
@@ -52,8 +52,10 @@ export function QuestionEditor({ initialData }: QuestionEditorProps) {
 
   const handleOptionChange = (index: number, text: string) => {
     const newOptions = [...options];
-    newOptions[index].optionText = text;
-    setOptions(newOptions);
+    if (newOptions[index]) {
+      newOptions[index].optionText = text;
+      setOptions(newOptions);
+    }
   };
 
   const handleSetCorrect = (index: number) => {
@@ -71,9 +73,10 @@ export function QuestionEditor({ initialData }: QuestionEditorProps) {
 
   const handleRemoveOption = (index: number) => {
     if (options.length <= 2) return; // Minimum 2 options
+    const targetOption = options[index];
     const newOptions = options.filter((_, i) => i !== index);
     // Fix isCorrect if the removed one was correct
-    if (options[index].isCorrect) {
+    if (targetOption?.isCorrect && newOptions[0]) {
       newOptions[0].isCorrect = true;
     }
     // Re-assign keys and displayOrder
@@ -229,7 +232,7 @@ export function QuestionEditor({ initialData }: QuestionEditorProps) {
                 label="Difficulty"
                 options={difficultyOptions}
                 value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value)}
+                onChange={(e) => setDifficulty(e.target.value as "EASY" | "MEDIUM" | "HARD")}
                 required
               />
             </div>

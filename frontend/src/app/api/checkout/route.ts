@@ -22,7 +22,7 @@ export async function POST(req: Request) {
         id: orderId,
         amount: mockAmountPaise,
         currency,
-        receipt: `rcpt_${Date.now()}`,
+        receipt: `rcpt_${userId || "anon"}_${Date.now()}`,
         status: "created",
         keyId: process.env.RAZORPAY_KEY_ID || "rzp_test_placeholder",
       },

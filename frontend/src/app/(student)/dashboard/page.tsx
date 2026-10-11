@@ -7,8 +7,6 @@ import {
   Clock, 
   Award, 
   CheckCircle, 
-  BookOpen, 
-  Sparkles, 
   TrendingUp, 
   ShoppingCart,
   ChevronRight,

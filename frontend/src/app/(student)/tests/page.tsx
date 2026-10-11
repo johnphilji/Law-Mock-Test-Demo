@@ -4,12 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { 
   Search, 
-  Filter, 
   Clock, 
   ShoppingCart, 
   Check, 
   ShieldCheck, 
-  Award,
   Zap
 } from "lucide-react";
 import { mockTests } from "@/lib/mock-data";
