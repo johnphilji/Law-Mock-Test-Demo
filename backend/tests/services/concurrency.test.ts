@@ -11,7 +11,7 @@
  * 
  * This file tests the application-layer race condition protections.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 
 // =============================================================================
 // IDEMPOTENCY TESTS — Payment reconciliation
@@ -81,7 +81,7 @@ describe("Payment Reconciliation — Idempotency & Concurrency", () => {
       
       // Simulate the SELECT FOR UPDATE transaction pattern.
       // Both paths check status before updating.
-      async function activateSubscription(source: "webhook" | "frontend"): Promise<boolean> {
+      async function activateSubscription(_source: "webhook" | "frontend"): Promise<boolean> {
         // In production: this is a SELECT ... FOR UPDATE in a transaction.
         // Only the first caller transitions status from CREATED → CAPTURED.
         if (paymentStatus !== "CREATED") {
@@ -102,6 +102,7 @@ describe("Payment Reconciliation — Idempotency & Concurrency", () => {
       
       // Exactly one should succeed (in actual DB, this is guaranteed by FOR UPDATE)
       const successCount = results.filter(Boolean).length;
+      expect(successCount).toBeGreaterThanOrEqual(1);
       // Note: JS Promise.all doesn't guarantee mutual exclusion — DB does.
       // This test documents the EXPECTED behavior; the actual guarantee is in DB transactions.
       expect(subscriptionActivationCount).toBeGreaterThanOrEqual(1);
@@ -174,7 +175,7 @@ describe("Payment Reconciliation — Idempotency & Concurrency", () => {
       }
       
       expect(canSaveAnswer("IN_PROGRESS")).toBe(true);
-      expect(canSaveAnswer("SUBMITTED")).toBe(false);
+      expect(canSaveAnswer(attemptStatus)).toBe(false);
     });
 
     it("rejects answer saves after attempt expires", () => {
