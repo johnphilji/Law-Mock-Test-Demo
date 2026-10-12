@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "postinstall": "prisma generate --schema=../backend/prisma/schema.prisma",
+    "build": "prisma generate --schema=../backend/prisma/schema.prisma && next build",
     "start": "next start",
     "lint": "eslint src --max-warnings 0",
     "lint:fix": "eslint src --fix",
@@ -52,6 +53,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "prettier-plugin-tailwindcss": "^0.8.1",
+    "prisma": "^6.12.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
