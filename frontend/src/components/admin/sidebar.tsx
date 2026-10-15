@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, createContext, useContext, type ReactNode } from "react";
+import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/utils/cn";
@@ -90,6 +90,7 @@ const navSections: NavSection[] = [
         children: [
           { label: "All Tests", href: "/admin/tests" },
           { label: "Create Test", href: "/admin/tests/new" },
+          { label: "Import Mock Test", href: "/admin/tests/import" },
         ],
       },
     ],
@@ -223,6 +224,36 @@ function NavItemComponent({ item, collapsed }: { item: NavItem; collapsed: boole
 
 export function AdminSidebar() {
   const { collapsed, mobileOpen, toggleCollapsed, closeMobile } = useSidebar();
+  const [user, setUser] = useState<{ name: string | null; email: string; role: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          setUser(data.user);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (err) {
+      console.error("Logout failed:", err);
+    } finally {
+      window.location.href = "/admin/login";
+    }
+  };
+
+  const displayName = user?.name || "Admin User";
+  const initials = displayName
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "AU";
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
@@ -271,21 +302,26 @@ export function AdminSidebar() {
         {!collapsed ? (
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-brand-700 flex items-center justify-center shrink-0">
-              <span className="text-xs font-medium text-white">AU</span>
+              <span className="text-xs font-medium text-white">{initials}</span>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-white truncate">Admin User</p>
-              <p className="text-[11px] text-brand-400 truncate">Administrator</p>
+              <p className="text-sm font-medium text-white truncate">{displayName}</p>
+              <p className="text-[11px] text-brand-400 truncate">{user?.email || "Administrator"}</p>
             </div>
             <button
-              className="text-brand-400 hover:text-white transition-colors shrink-0"
+              onClick={handleSignOut}
+              className="text-brand-400 hover:text-white transition-colors shrink-0 p-1 rounded hover:bg-brand-700/40"
               title="Sign out"
             >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
         ) : (
-          <button className="w-full flex justify-center text-brand-400 hover:text-white transition-colors" title="Sign out">
+          <button
+            onClick={handleSignOut}
+            className="w-full flex justify-center text-brand-400 hover:text-white transition-colors p-1.5 rounded hover:bg-brand-700/40"
+            title="Sign out"
+          >
             <LogOut className="w-4 h-4" />
           </button>
         )}

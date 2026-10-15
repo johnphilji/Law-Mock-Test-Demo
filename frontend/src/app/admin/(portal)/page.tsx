@@ -1,103 +1,86 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardHeader, StatCard, Badge, DataTable, type Column } from "@/components/ui/components";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatDateTime, formatRelative } from "@/utils/formatters";
-import {
-  mockDashboardStats,
-  mockPayments,
-  mockStudents,
-  mockObjections,
-  mockTests,
-  mockRevenueData,
-  type MockPayment,
-  type MockUser,
-  type MockObjection,
-  type MockTest,
-} from "@/lib/mock-data";
+import { formatCurrency, formatRelative } from "@/utils/formatters";
 import Link from "next/link";
 
-// =============================================================================
-// MINI REVENUE CHART (SVG-based, no dependency)
-// =============================================================================
-
-function MiniRevenueChart() {
-  const data = mockRevenueData;
-  const maxRevenue = Math.max(...data.map((d) => d.revenuePaise), 1);
-  const width = 600;
-  const height = 160;
-  const padding = { top: 10, right: 10, bottom: 30, left: 50 };
-  const chartW = width - padding.left - padding.right;
-  const chartH = height - padding.top - padding.bottom;
-
-  const points = data.map((d, i) => ({
-    x: padding.left + (i / (data.length - 1)) * chartW,
-    y: padding.top + chartH - (d.revenuePaise / maxRevenue) * chartH,
-    label: d.date.slice(5),
-    value: d.revenuePaise,
-  }));
-
-  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-  const areaPath = `${linePath} L ${points[points.length - 1]!.x} ${padding.top + chartH} L ${points[0]!.x} ${padding.top + chartH} Z`;
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
-      {/* Grid lines */}
-      {[0, 0.25, 0.5, 0.75, 1].map((pct) => {
-        const y = padding.top + chartH - pct * chartH;
-        return (
-          <g key={pct}>
-            <line x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke="#e2e8f0" strokeWidth="1" />
-            <text x={padding.left - 6} y={y + 4} textAnchor="end" className="text-[9px] fill-[#627d98]">
-              {formatCurrency(maxRevenue * pct)}
-            </text>
-          </g>
-        );
-      })}
-
-      {/* Area */}
-      <path d={areaPath} fill="url(#revenue-gradient)" />
-      <defs>
-        <linearGradient id="revenue-gradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#334e68" stopOpacity="0.15" />
-          <stop offset="100%" stopColor="#334e68" stopOpacity="0.02" />
-        </linearGradient>
-      </defs>
-
-      {/* Line */}
-      <path d={linePath} fill="none" stroke="#334e68" strokeWidth="2" />
-
-      {/* Dots and x-labels */}
-      {points.map((p, i) => (
-        <g key={i}>
-          <circle cx={p.x} cy={p.y} r="3" fill="#334e68" />
-          {i % 2 === 0 && (
-            <text x={p.x} y={height - 6} textAnchor="middle" className="text-[9px] fill-[#627d98]">
-              {p.label}
-            </text>
-          )}
-        </g>
-      ))}
-    </svg>
-  );
+interface RealPayment {
+  id: string;
+  userName: string;
+  userEmail: string;
+  amountPaise: number;
+  status: string;
+  createdAt: string;
 }
 
-// =============================================================================
-// DASHBOARD PAGE
-// =============================================================================
+interface RealStudent {
+  id: string;
+  name: string;
+  email: string;
+  isEmailVerified: boolean;
+  isActive: boolean;
+  createdAt: string;
+}
+
+interface RealTest {
+  id: string;
+  title: string;
+  examName: string;
+  type: string;
+  totalQuestions: number;
+  durationMinutes: number;
+  pricePaise: number;
+  discountedPricePaise: number | null;
+  isFree?: boolean;
+  status: string;
+}
+
+interface DashboardStats {
+  totalStudents: number;
+  activeStudents: number;
+  publishedExams: number;
+  publishedMockTests: number;
+  activeSubscriptions: number;
+  todayRevenuePaise: number;
+  totalRevenuePaise: number;
+}
 
 export default function AdminDashboardPage() {
-  const stats = mockDashboardStats;
-  const recentPayments = mockPayments.slice(0, 5);
-  const recentStudents = mockStudents.slice(-5).reverse();
-  const recentObjections = mockObjections.filter((o) => o.status === "OPEN" || o.status === "UNDER_REVIEW");
-  const recentTests = mockTests.filter((t) => t.status === "PUBLISHED").slice(0, 4);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalStudents: 0,
+    activeStudents: 0,
+    publishedExams: 0,
+    publishedMockTests: 0,
+    activeSubscriptions: 0,
+    todayRevenuePaise: 0,
+    totalRevenuePaise: 0,
+  });
+  const [recentPayments, setRecentPayments] = useState<RealPayment[]>([]);
+  const [recentStudents, setRecentStudents] = useState<RealStudent[]>([]);
+  const [recentTests, setRecentTests] = useState<RealTest[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/admin/dashboard")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          if (data.stats) setStats(data.stats);
+          if (Array.isArray(data.recentPayments)) setRecentPayments(data.recentPayments);
+          if (Array.isArray(data.recentStudents)) setRecentStudents(data.recentStudents);
+          if (Array.isArray(data.recentTests)) setRecentTests(data.recentTests);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   const now = new Date();
   const greeting = now.getHours() < 12 ? "Good morning" : now.getHours() < 17 ? "Good afternoon" : "Good evening";
 
-  const paymentColumns: Column<MockPayment>[] = [
+  const paymentColumns: Column<RealPayment>[] = [
     { key: "user", header: "Student", render: (r) => (
       <div>
         <p className="font-medium text-foreground">{r.userName}</p>
@@ -114,7 +97,7 @@ export default function AdminDashboardPage() {
     )},
   ];
 
-  const studentColumns: Column<MockUser>[] = [
+  const studentColumns: Column<RealStudent>[] = [
     { key: "name", header: "Name", render: (r) => (
       <div>
         <p className="font-medium text-foreground">{r.name}</p>
@@ -146,7 +129,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards with Real Data */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <StatCard label="Total Students" value={stats.totalStudents} />
         <StatCard label="Active Students" value={stats.activeStudents} />
@@ -155,17 +138,6 @@ export default function AdminDashboardPage() {
         <StatCard label="Active Subscriptions" value={stats.activeSubscriptions} />
         <StatCard label="Today's Revenue" value={formatCurrency(stats.todayRevenuePaise)} />
       </div>
-
-      {/* Revenue Chart */}
-      <Card>
-        <CardHeader
-          title="Revenue (Last 30 Days)"
-          description={`Total: ${formatCurrency(stats.totalRevenuePaise)}`}
-        />
-        <div className="mt-4">
-          <MiniRevenueChart />
-        </div>
-      </Card>
 
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -182,7 +154,13 @@ export default function AdminDashboardPage() {
             />
           </div>
           <div className="mt-3">
-            <DataTable columns={paymentColumns} data={recentPayments} />
+            {recentPayments.length > 0 ? (
+              <DataTable columns={paymentColumns} data={recentPayments} />
+            ) : (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                No payments recorded yet. Student transactions will appear here.
+              </div>
+            )}
           </div>
         </Card>
 
@@ -199,79 +177,52 @@ export default function AdminDashboardPage() {
             />
           </div>
           <div className="mt-3">
-            <DataTable columns={studentColumns} data={recentStudents} />
+            {recentStudents.length > 0 ? (
+              <DataTable columns={studentColumns} data={recentStudents} />
+            ) : (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                No registered students yet.
+              </div>
+            )}
           </div>
         </Card>
       </div>
 
-      {/* Objections + Recent Tests */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Open Objections */}
-        <Card>
-          <CardHeader
-            title="Open Objections"
-            description={`${recentObjections.length} pending review`}
-            action={
-              <Link href="/admin/objections">
-                <Button variant="ghost" size="sm">View all</Button>
-              </Link>
-            }
-          />
-          <div className="mt-3 space-y-3">
-            {recentObjections.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No open objections</p>
-            ) : (
-              recentObjections.map((obj) => (
-                <div key={obj.id} className="border border-border rounded-md p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{obj.questionText}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        by {obj.studentName} · {formatRelative(obj.submittedAt)}
-                      </p>
-                    </div>
-                    <Badge variant={obj.status === "OPEN" ? "open" : "under-review"}>
-                      {obj.status.replace("_", " ")}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{obj.objectionText}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-
-        {/* Recently Published Tests */}
-        <Card>
-          <CardHeader
-            title="Published Tests"
-            action={
-              <Link href="/admin/tests">
-                <Button variant="ghost" size="sm">View all</Button>
-              </Link>
-            }
-          />
-          <div className="mt-3 space-y-2">
-            {recentTests.map((test) => (
+      {/* Published Tests Card */}
+      <Card>
+        <CardHeader
+          title="Published Tests"
+          action={
+            <Link href="/admin/tests">
+              <Button variant="ghost" size="sm">View all</Button>
+            </Link>
+          }
+        />
+        <div className="mt-3 space-y-2">
+          {recentTests.length > 0 ? (
+            recentTests.map((test) => (
               <div key={test.id} className="flex items-center justify-between border border-border rounded-md p-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{test.title}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <Badge variant="outline">{test.type}</Badge>
                     <span className="text-xs text-muted-foreground">
-                      {test.totalQuestions} Qs · {test.durationMinutes} min
+                      {test.examName} • {test.durationMinutes} min
                     </span>
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-medium tabular-nums">{test.attemptCount}</p>
-                  <p className="text-xs text-muted-foreground">attempts</p>
-                </div>
               </div>
-            ))}
-          </div>
-        </Card>
-      </div>
+            ))
+          ) : (
+            <div className="py-8 text-center">
+              <p className="text-sm text-muted-foreground">No mock tests published yet.</p>
+              <Link href="/admin/tests/new" className="mt-2 inline-block">
+                <Button size="sm" variant="outline">Create New Test</Button>
+              </Link>
+            </div>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

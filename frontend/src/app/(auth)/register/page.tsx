@@ -111,9 +111,35 @@ export default function RegisterPage() {
     if (!validate()) return;
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    setLoading(false);
-    setSuccess(true);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.fieldErrors) {
+          setFieldErrors((prev) => ({ ...prev, ...data.fieldErrors }));
+        }
+        setError(data.error || "Failed to create account. Please check your details.");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(false);
+      setSuccess(true);
+    } catch {
+      setError("Network error connecting to the registration service. Please try again.");
+      setLoading(false);
+    }
   };
 
   if (success) {
@@ -127,20 +153,20 @@ export default function RegisterPage() {
           </div>
           <h2 className="text-lg font-semibold text-foreground">Account Created Successfully</h2>
           <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-            A verification link has been sent to <strong>{formData.email}</strong>.
-            Please check your inbox and verify your email address to activate your account.
+            Welcome to Panther Law Prep, <strong>{formData.name}</strong>! Your account has been created and your session is active.
           </p>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Didn&apos;t receive the email? Check your spam folder or{" "}
-            <button className="text-brand-700 font-medium hover:underline">
-              resend verification email
-            </button>.
-          </p>
-          <Link href="/login">
-            <Button variant="primary" className="mt-6 w-full" size="lg">
-              Go to Sign In
-            </Button>
-          </Link>
+          <div className="pt-4 flex flex-col gap-2.5">
+            <Link href="/dashboard">
+              <Button variant="primary" className="w-full" size="lg">
+                Enter Student Dashboard
+              </Button>
+            </Link>
+            <Link href="/tests">
+              <Button variant="outline" className="w-full" size="md">
+                Browse Mock Test Series
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     );

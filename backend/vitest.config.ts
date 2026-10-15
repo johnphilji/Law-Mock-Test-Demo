@@ -29,7 +29,7 @@ export default defineConfig({
     // Load .env.test for test environment variables.
     env: {
       APP_ENVIRONMENT: "development",
-      DATABASE_URL: "postgresql://test:test@localhost:5432/panther_test",
+      DATABASE_URL: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/panther_law_prep?schema=public",
     },
   },
   resolve: {

@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, Suspense } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, PasswordInput, Checkbox } from "@/components/ui/input";
 import { Alert } from "@/components/ui/components";
 
-export default function LoginPage() {
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -17,8 +20,8 @@ export default function LoginPage() {
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
     if (!email.trim()) errors.email = "Email is required";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !/^[6-9]\d{9}$/.test(email)) {
-      errors.email = "Enter a valid email address or mobile number";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = "Enter a valid email address";
     }
     if (!password) errors.password = "Password is required";
     setFieldErrors(errors);
@@ -31,11 +34,33 @@ export default function LoginPage() {
     if (!validate()) return;
 
     setLoading(true);
-    // Simulate API call with mock delay
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    // Mock: always show credentials error for demo
-    setError("Invalid email or password. Please check your credentials and try again.");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Invalid email or password. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      const callbackUrl = searchParams.get("callbackUrl");
+      if (callbackUrl && !callbackUrl.startsWith("/api") && !callbackUrl.startsWith("//")) {
+        router.push(callbackUrl);
+      } else if (data.user?.role === "ADMIN") {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
+      router.refresh();
+    } catch {
+      setError("Unable to connect to the authentication service. Please try again.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -189,3 +214,12 @@ export default function LoginPage() {
     </div>
   );
 }
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center p-6 bg-muted text-muted-foreground text-sm">Loading sign in...</div>}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+

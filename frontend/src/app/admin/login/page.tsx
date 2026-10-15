@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useState, type FormEvent, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, PasswordInput, Checkbox } from "@/components/ui/input";
 import { Alert } from "@/components/ui/components";
 
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberDevice, setRememberDevice] = useState(false);
@@ -30,16 +31,38 @@ export default function AdminLoginPage() {
     if (!validate()) return;
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const data = await res.json();
 
-    // Mock: Accept demo credentials
-    if (email === "admin@pantherlawprep.com" && password === "admin123") {
-      router.push("/admin");
-      return;
+      if (!res.ok) {
+        setError(data.error || "Invalid administrator credentials.");
+        setLoading(false);
+        return;
+      }
+
+      if (data.user?.role !== "ADMIN") {
+        await fetch("/api/auth/logout", { method: "POST" });
+        setError("Access denied: You do not possess administrator privileges.");
+        setLoading(false);
+        return;
+      }
+
+      const callbackUrl = searchParams.get("callbackUrl");
+      if (callbackUrl && !callbackUrl.startsWith("/api") && !callbackUrl.startsWith("//")) {
+        router.push(callbackUrl);
+      } else {
+        router.push("/admin");
+      }
+      router.refresh();
+    } catch {
+      setError("Network error connecting to administrative authentication.");
+      setLoading(false);
     }
-
-    setLoading(false);
-    setError("Invalid credentials. This login attempt has been recorded.");
   };
 
   return (
@@ -131,3 +154,12 @@ export default function AdminLoginPage() {
     </div>
   );
 }
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-brand-900 text-white text-sm">Loading admin portal...</div>}>
+      <AdminLoginForm />
+    </Suspense>
+  );
+}
+

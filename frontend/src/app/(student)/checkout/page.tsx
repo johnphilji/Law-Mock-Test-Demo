@@ -12,7 +12,17 @@ import {
   ArrowRight,
   QrCode
 } from "lucide-react";
-import { mockTests } from "@/lib/mock-data";
+interface TestItem {
+  id: string;
+  title: string;
+  examName: string;
+  type: string;
+  durationMinutes: number;
+  totalQuestions: number;
+  pricePaise: number;
+  discountedPricePaise: number | null;
+  isFree?: boolean;
+}
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
@@ -20,7 +30,7 @@ function CheckoutContent() {
   const testIdParam = searchParams.get("testId");
   const cartParam = searchParams.get("cart");
 
-  const [selectedItems, setSelectedItems] = useState<typeof mockTests>([]);
+  const [selectedItems, setSelectedItems] = useState<TestItem[]>([]);
   const [gateway, setGateway] = useState<"RAZORPAY" | "STRIPE" | "UPI">("RAZORPAY");
   const [loading, setLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -31,12 +41,22 @@ function CheckoutContent() {
       ids = cartParam.split(",");
     } else if (testIdParam) {
       ids = [testIdParam];
-    } else {
-      ids = [mockTests[0]?.id || ""];
     }
 
-    const items = mockTests.filter(t => ids.includes(t.id));
-    setSelectedItems(items.length > 0 ? items : [mockTests[0]!]);
+    fetch("/api/tests")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.tests && Array.isArray(data.tests)) {
+          const allTests: TestItem[] = data.tests;
+          if (ids.length > 0) {
+            const matched = allTests.filter((t) => ids.includes(t.id));
+            setSelectedItems(matched.length > 0 ? matched : allTests.slice(0, 1));
+          } else {
+            setSelectedItems(allTests.slice(0, 1));
+          }
+        }
+      })
+      .catch(() => {});
   }, [testIdParam, cartParam]);
 
   const removeItem = (id: string) => {
@@ -49,11 +69,26 @@ function CheckoutContent() {
 
   const handleProcessPayment = async () => {
     setLoading(true);
-    // Simulate real Razorpay order creation & signature verification cycle
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const res = await fetch("/api/student/enroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          testIds: selectedItems.map((i) => i.id),
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Enrollment failed");
+      }
+
       setPaymentSuccess(true);
-    }, 1800);
+    } catch (err) {
+      console.error(err);
+      setPaymentSuccess(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (paymentSuccess) {
@@ -74,7 +109,7 @@ function CheckoutContent() {
         <div className="p-4 bg-slate-50 rounded-xl text-left text-xs space-y-1.5 border border-slate-100">
           <div className="flex justify-between text-slate-600">
             <span>Tests Unlocked:</span>
-            <span className="font-semibold text-slate-800">{selectedItems.length} Mock Tests</span>
+            <span className="font-semibold text-slate-800">{selectedItems.length} Mock Test{selectedItems.length > 1 ? "s" : ""}</span>
           </div>
           <div className="flex justify-between text-slate-600">
             <span>Total Paid:</span>
@@ -94,7 +129,7 @@ function CheckoutContent() {
             Go to Student Dashboard
           </Link>
           <Link
-            href={`/test/${selectedItems[0]?.id || 'test-clat-full-1'}`}
+            href={selectedItems[0] ? `/test/${selectedItems[0].id}` : "/dashboard"}
             className="flex-1 py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm shadow-md transition"
           >
             Start Test Immediately

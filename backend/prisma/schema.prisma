@@ -162,6 +162,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
   @@map("accounts")
 }
 
@@ -173,6 +174,7 @@ model Session {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("sessions")
 }
 
@@ -181,7 +183,7 @@ model VerificationToken {
   token      String   @unique
   expires    DateTime
 
-  @@unique([identifier, token])
+  @@id([identifier, token])
   @@map("verification_tokens")
 }
 
@@ -287,6 +289,7 @@ model Test {
   @@index([examId])
   @@index([status])
   @@index([type])
+  @@index([createdBy])
   @@map("tests")
 }
 
@@ -343,6 +346,7 @@ model QuestionVersion {
 
   @@unique([questionId, version])
   @@index([questionId])
+  @@index([createdBy])
   @@map("question_versions")
 }
 
@@ -379,6 +383,7 @@ model TestQuestion {
   @@unique([testId, questionId])
   @@index([testId])
   @@index([questionId])
+  @@index([questionVersionId])
   @@map("test_questions")
 }
 
@@ -457,6 +462,8 @@ model AttemptQuestion {
   @@unique([attemptId, questionId])
   @@unique([attemptId, displayOrder])
   @@index([attemptId])
+  @@index([questionId])
+  @@index([questionVersionId])
   @@map("attempt_questions")
 }
 
@@ -478,6 +485,8 @@ model AttemptAnswer {
 
   @@unique([attemptId, questionId])
   @@index([attemptId])
+  @@index([questionId])
+  @@index([questionVersionId])
   @@map("attempt_answers")
 }
 
@@ -585,6 +594,7 @@ model SupportMessage {
   sender User          @relation(fields: [senderId], references: [id])
 
   @@index([ticketId])
+  @@index([senderId])
   @@map("support_messages")
 }
 

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import { getCurrentSession } from "@/lib/session";
+import { prisma } from "@/lib/db/client";
 
 export async function POST(req: Request) {
   try {
@@ -30,10 +32,42 @@ export async function POST(req: Request) {
       }
     }
 
-    // In production, execute transaction:
-    // 1. Mark Payment record as CAPTURED
-    // 2. Grant Subscription/Attempt entitlement to user
-    // 3. Trigger receipt email
+    const session = await getCurrentSession();
+    if (session) {
+      const payment = await prisma.payment.upsert({
+        where: { razorpayOrderId },
+        update: {
+          razorpayPaymentId,
+          razorpaySignature,
+          status: "CAPTURED",
+        },
+        create: {
+          userId: session.id,
+          razorpayOrderId,
+          razorpayPaymentId,
+          razorpaySignature,
+          amountPaise: 4900,
+          currency: "INR",
+          status: "CAPTURED",
+        },
+      });
+
+      await prisma.subscription.upsert({
+        where: { paymentId: payment.id },
+        update: {
+          status: "ACTIVE",
+          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        },
+        create: {
+          userId: session.id,
+          paymentId: payment.id,
+          status: "ACTIVE",
+          startedAt: new Date(),
+          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       status: "CAPTURED",

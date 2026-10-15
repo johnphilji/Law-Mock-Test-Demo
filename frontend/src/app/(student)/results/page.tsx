@@ -1,28 +1,111 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { 
   CheckCircle2, 
   XCircle, 
   AlertCircle, 
   ArrowLeft,
-  FileText
+  FileText,
+  Award,
+  Loader2,
+  BookOpen
 } from "lucide-react";
-import { mockQuestions, type MockQuestion } from "@/lib/mock-data";
 
-export default function StudentResultsPage() {
+interface ResultQuestion {
+  questionId: string;
+  order: number;
+  questionText: string;
+  explanation: string;
+  marks: number;
+  negativeMarks: number;
+  options: { key: string; text: string; isCorrect?: boolean }[];
+  selectedOptionKey: string | null;
+  correctOptionKey: string;
+  isCorrect: boolean;
+  isUnanswered: boolean;
+}
+
+interface AttemptResultData {
+  attemptId: string;
+  testTitle: string;
+  examName: string;
+  score: number;
+  totalMarks: number;
+  percentage: number;
+  correctCount: number;
+  incorrectCount: number;
+  unansweredCount: number;
+  timeTakenSeconds: number;
+  submittedAt: string;
+  questions: ResultQuestion[];
+}
+
+function ResultsContent() {
+  const searchParams = useSearchParams();
+  const attemptId = searchParams.get("attemptId");
+
   const [activeTab, setActiveTab] = useState<"summary" | "solutions">("summary");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<AttemptResultData | null>(null);
 
-  const totalQuestions = mockQuestions.length;
-  const correct = 3;
-  const incorrect = 1;
-  const unattempted = totalQuestions - (correct + incorrect);
-  const score = (correct * 1) - (incorrect * 0.25);
-  const maxScore = totalQuestions * 1;
-  const percentile = 94.6;
-  const rank = 142;
-  const totalCandidates = 4250;
+  useEffect(() => {
+    if (!attemptId) {
+      setLoading(false);
+      return;
+    }
+
+    fetch(`/api/attempts/${attemptId}/result`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Could not load exam results or access denied");
+        return res.json();
+      })
+      .then((data) => {
+        setResult(data);
+      })
+      .catch((err) => {
+        setError(err.message);
+      })
+      .finally(() => setLoading(false));
+  }, [attemptId]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-slate-600">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-3" />
+        <p className="text-sm font-medium">Generating official scorecard...</p>
+      </div>
+    );
+  }
+
+  if (error || !result) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center max-w-lg mx-auto">
+        <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-800">No Result Selected</h2>
+        <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+          {error || "Please complete an exam attempt from your dashboard to view your official evaluation and solutions."}
+        </p>
+        <div className="mt-6">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition"
+          >
+            <ArrowLeft className="w-4 h-4" /> Go to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const accuracy = (result.correctCount + result.incorrectCount) > 0
+    ? Math.round((result.correctCount / (result.correctCount + result.incorrectCount)) * 100)
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -34,8 +117,10 @@ export default function StudentResultsPage() {
               <ArrowLeft className="w-3.5 h-3.5" /> Back to Dashboard
             </Link>
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 mt-1">Scorecard: CLAT All-India Mock 01</h1>
-          <p className="text-xs text-slate-500">Attempted on 11 Oct 2026 • Proctored Session Verified</p>
+          <h1 className="text-2xl font-extrabold text-slate-900 mt-1">Scorecard: {result.testTitle}</h1>
+          <p className="text-xs text-slate-500">
+            Exam: {result.examName} • Submitted on {new Date(result.submittedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })} • Evaluated Server-side
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -53,33 +138,33 @@ export default function StudentResultsPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-center divide-y md:divide-y-0 md:divide-x divide-slate-800">
           <div className="space-y-1 py-2 md:py-0">
             <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Your Final Score</p>
-            <h2 className="text-4xl sm:text-5xl font-black text-amber-400">{score.toFixed(2)}</h2>
-            <p className="text-xs text-slate-400">Out of {maxScore}.00 Marks</p>
+            <h2 className="text-4xl sm:text-5xl font-black text-amber-400">{result.score.toFixed(2)}</h2>
+            <p className="text-xs text-slate-400">Out of {result.totalMarks.toFixed(2)} Marks</p>
           </div>
 
           <div className="space-y-1 py-2 md:py-0">
-            <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">All-India Percentile</p>
-            <h2 className="text-4xl sm:text-5xl font-black text-emerald-400">{percentile}%</h2>
-            <p className="text-xs text-slate-400">Top 5% of candidates</p>
-          </div>
-
-          <div className="space-y-1 py-2 md:py-0">
-            <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Projected AIR Rank</p>
-            <h2 className="text-4xl sm:text-5xl font-black text-blue-400">#{rank}</h2>
-            <p className="text-xs text-slate-400">Among {totalCandidates.toLocaleString()} candidates</p>
+            <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Percentage</p>
+            <h2 className="text-4xl sm:text-5xl font-black text-emerald-400">{result.percentage}%</h2>
+            <p className="text-xs text-slate-400">Calculated over total test marks</p>
           </div>
 
           <div className="space-y-1 py-2 md:py-0">
             <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Accuracy Rate</p>
+            <h2 className="text-4xl sm:text-5xl font-black text-blue-400">{accuracy}%</h2>
+            <p className="text-xs text-slate-400">{result.correctCount} Correct • {result.incorrectCount} Incorrect</p>
+          </div>
+
+          <div className="space-y-1 py-2 md:py-0">
+            <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Time Taken</p>
             <h2 className="text-4xl sm:text-5xl font-black text-purple-400">
-              {((correct / (correct + incorrect)) * 100).toFixed(0)}%
+              {Math.floor(result.timeTakenSeconds / 60)}m {result.timeTakenSeconds % 60}s
             </h2>
-            <p className="text-xs text-slate-400">3 Correct • 1 Incorrect</p>
+            <p className="text-xs text-slate-400">Recorded on server</p>
           </div>
         </div>
       </div>
 
-      {/* Breakdown Breakdown Tabs */}
+      {/* Tabs */}
       <div className="flex gap-4 border-b border-slate-200">
         <button
           onClick={() => setActiveTab("summary")}
@@ -89,7 +174,7 @@ export default function StudentResultsPage() {
               : "border-transparent text-slate-500 hover:text-slate-900"
           }`}
         >
-          Sectional Analysis
+          Performance Summary
         </button>
         <button
           onClick={() => setActiveTab("solutions")}
@@ -99,7 +184,7 @@ export default function StudentResultsPage() {
               : "border-transparent text-slate-500 hover:text-slate-900"
           }`}
         >
-          Detailed Solutions & Answer Key
+          Detailed Solutions & Explanations ({result.questions.length})
         </button>
       </div>
 
@@ -110,8 +195,8 @@ export default function StudentResultsPage() {
               <span className="text-xs font-bold text-slate-500 uppercase">Correct Attempts</span>
               <CheckCircle2 className="w-5 h-5 text-emerald-600" />
             </div>
-            <div className="text-2xl font-bold text-slate-900">{correct}</div>
-            <p className="text-xs text-slate-500">+{correct * 1} marks earned</p>
+            <div className="text-2xl font-bold text-slate-900">{result.correctCount}</div>
+            <p className="text-xs text-slate-500">Positive marks added</p>
           </div>
 
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-3">
@@ -119,8 +204,8 @@ export default function StudentResultsPage() {
               <span className="text-xs font-bold text-slate-500 uppercase">Incorrect Attempts</span>
               <XCircle className="w-5 h-5 text-red-500" />
             </div>
-            <div className="text-2xl font-bold text-slate-900">{incorrect}</div>
-            <p className="text-xs text-slate-500">-{incorrect * 0.25} negative deduction</p>
+            <div className="text-2xl font-bold text-slate-900">{result.incorrectCount}</div>
+            <p className="text-xs text-slate-500">Negative deductions applied</p>
           </div>
 
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-3">
@@ -128,62 +213,101 @@ export default function StudentResultsPage() {
               <span className="text-xs font-bold text-slate-500 uppercase">Skipped / Unattempted</span>
               <AlertCircle className="w-5 h-5 text-slate-400" />
             </div>
-            <div className="text-2xl font-bold text-slate-900">{unattempted}</div>
-            <p className="text-xs text-slate-500">0 marks change</p>
+            <div className="text-2xl font-bold text-slate-900">{result.unansweredCount}</div>
+            <p className="text-xs text-slate-500">No mark change</p>
           </div>
         </div>
       ) : (
         <div className="space-y-4">
-          {mockQuestions.map((q: MockQuestion, idx: number) => {
-            const version = q.versions[q.versions.length - 1];
-            const correctOpt = version?.options.find((o) => o.isCorrect);
-
-            return (
-              <div key={q.id} className="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700">
-                    Question {idx + 1} • {q.subjectName}
-                  </span>
-                  {correctOpt && (
+          {result.questions.map((q, idx) => (
+            <div key={q.questionId || idx} className="bg-white rounded-xl border border-slate-200 p-6 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700">
+                  Question {q.order}
+                </span>
+                <div className="flex items-center gap-2">
+                  {q.isCorrect ? (
                     <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                      Correct Answer: Option {correctOpt.optionKey}
+                      ✓ Correct
+                    </span>
+                  ) : q.isUnanswered ? (
+                    <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                      Unattempted
+                    </span>
+                  ) : (
+                    <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                      ✗ Incorrect
                     </span>
                   )}
+                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-200">
+                    Correct Option: {q.correctOptionKey}
+                  </span>
                 </div>
-
-                <div className="text-sm font-medium text-slate-900 leading-relaxed">
-                  {version?.questionText}
-                </div>
-
-                <div className="space-y-2 text-xs">
-                  {version?.options.map((opt) => (
-                    <div 
-                      key={opt.optionKey}
-                      className={`p-3 rounded-lg border flex items-center justify-between ${
-                        opt.isCorrect 
-                          ? "bg-emerald-50 border-emerald-300 text-emerald-900 font-semibold" 
-                          : "bg-slate-50 border-slate-200 text-slate-700"
-                      }`}
-                    >
-                      <span><strong>({opt.optionKey})</strong> {opt.optionText}</span>
-                      {opt.isCorrect && (
-                        <span className="text-[10px] uppercase font-bold text-emerald-700">Correct Key</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {version?.explanation && (
-                  <div className="p-4 bg-blue-50/70 border border-blue-100 rounded-xl text-xs space-y-1">
-                    <span className="font-bold text-blue-900 uppercase tracking-wider text-[10px]">Official Explanation:</span>
-                    <p className="text-slate-700 leading-relaxed">{version.explanation}</p>
-                  </div>
-                )}
               </div>
-            );
-          })}
+
+              <div className="text-sm font-medium text-slate-900 leading-relaxed">
+                {q.questionText}
+              </div>
+
+              <div className="space-y-2 text-xs">
+                {q.options.map((opt) => {
+                  const isUserSelection = q.selectedOptionKey === opt.key;
+                  const isCorrectKey = q.correctOptionKey === opt.key;
+
+                  let borderClass = "border-slate-200 bg-slate-50 text-slate-700";
+                  if (isCorrectKey) {
+                    borderClass = "border-emerald-400 bg-emerald-50 text-emerald-900 font-semibold";
+                  } else if (isUserSelection && !isCorrectKey) {
+                    borderClass = "border-red-300 bg-red-50 text-red-900 font-medium";
+                  }
+
+                  return (
+                    <div 
+                      key={opt.key}
+                      className={`p-3 rounded-lg border flex items-center justify-between ${borderClass}`}
+                    >
+                      <span>
+                        <strong className="mr-1">({opt.key})</strong> {opt.text}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {isUserSelection && (
+                          <span className="text-[10px] uppercase font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                            Your Choice
+                          </span>
+                        )}
+                        {isCorrectKey && (
+                          <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded">
+                            Correct Key
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {q.explanation && (
+                <div className="p-4 bg-blue-50/70 border border-blue-100 rounded-xl text-xs space-y-1">
+                  <span className="font-bold text-blue-900 uppercase tracking-wider text-[10px]">Official Explanation:</span>
+                  <p className="text-slate-700 leading-relaxed">{q.explanation}</p>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>
+  );
+}
+
+export default function StudentResultsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex justify-center py-20 text-slate-500">
+        <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading scorecard...
+      </div>
+    }>
+      <ResultsContent />
+    </Suspense>
   );
 }

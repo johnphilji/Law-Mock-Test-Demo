@@ -24,5 +24,8 @@
     "db:bootstrap-admin": "npm --workspace=backend run db:bootstrap-admin",
     "db:studio": "npm --workspace=backend run db:studio",
     "db:reset": "npm --workspace=backend run db:reset"
+  },
+  "dependencies": {
+    "pdf-parse": "^1.1.1"
   }
 }

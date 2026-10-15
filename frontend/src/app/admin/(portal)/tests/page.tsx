@@ -1,20 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, Badge, DataTable, Breadcrumbs, Tabs, SearchInput, ConfirmDialog, Pagination, type Column, type TabItem } from "@/components/ui/components";
-import { mockTests, type MockTest } from "@/lib/mock-data";
+import { Card, Badge, DataTable, Breadcrumbs, Tabs, SearchInput, type Column, type TabItem } from "@/components/ui/components";
 import { formatDate, formatCurrency } from "@/utils/formatters";
-import { Plus, Edit, Eye, Archive, MoreVertical } from "lucide-react";
+import { Plus, Upload, PlayCircle } from "lucide-react";
+
+interface RealTestAdmin {
+  id: string;
+  title: string;
+  slug: string;
+  examName: string;
+  type: string;
+  status: string;
+  durationMinutes: number;
+  totalQuestions: number;
+  totalMarks: number;
+  negativeMarking: number;
+  attemptCount: number;
+  isFree: boolean;
+  pricePaise: number;
+  discountedPricePaise: number | null;
+  createdAt: string;
+}
 
 export default function TestsPage() {
+  const [tests, setTests] = useState<RealTestAdmin[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
-  const [page, setPage] = useState(1);
-  const [confirmArchive, setConfirmArchive] = useState<MockTest | null>(null);
 
-  const filtered = mockTests.filter((t) => {
+  useEffect(() => {
+    fetch("/api/admin/tests")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.tests && Array.isArray(data.tests)) {
+          setTests(data.tests);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = tests.filter((t) => {
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
     if (tab === "draft" && t.status !== "DRAFT") return false;
     if (tab === "published" && t.status !== "PUBLISHED") return false;
@@ -23,16 +52,16 @@ export default function TestsPage() {
   });
 
   const tabs: TabItem[] = [
-    { id: "all", label: "All Tests", count: mockTests.length },
-    { id: "draft", label: "Drafts", count: mockTests.filter((t) => t.status === "DRAFT").length },
-    { id: "published", label: "Published", count: mockTests.filter((t) => t.status === "PUBLISHED").length },
-    { id: "archived", label: "Archived", count: mockTests.filter((t) => t.status === "ARCHIVED").length },
+    { id: "all", label: "All Tests", count: tests.length },
+    { id: "draft", label: "Drafts", count: tests.filter((t) => t.status === "DRAFT").length },
+    { id: "published", label: "Published", count: tests.filter((t) => t.status === "PUBLISHED").length },
+    { id: "archived", label: "Archived", count: tests.filter((t) => t.status === "ARCHIVED").length },
   ];
 
-  const columns: Column<MockTest>[] = [
+  const columns: Column<RealTestAdmin>[] = [
     { key: "title", header: "Test", render: (r) => (
       <div>
-        <Link href={`/admin/tests/${r.id}`} className="font-medium text-foreground hover:text-brand-700 transition-colors">
+        <Link href={`/test/${r.id}`} className="font-medium text-foreground hover:text-brand-700 transition-colors flex items-center gap-1.5">
           {r.title}
         </Link>
         <div className="flex items-center gap-1.5 mt-0.5">
@@ -41,78 +70,85 @@ export default function TestsPage() {
         </div>
       </div>
     )},
-    { key: "questions", header: "Questions", render: (r) => <span className="tabular-nums">{r.totalQuestions}</span>, className: "w-24" },
+    { key: "questions", header: "Questions", render: (r) => <span className="tabular-nums font-semibold">{r.totalQuestions}</span>, className: "w-24" },
     { key: "duration", header: "Duration", render: (r) => <span className="text-sm">{r.durationMinutes} min</span>, className: "w-24" },
-    { key: "price", header: "Price", render: (r) => (
-      <div>
-        {r.isFree ? (
-          <Badge variant="success">FREE</Badge>
-        ) : (
-          <div>
-            <span className="text-sm font-medium">{formatCurrency(r.discountedPricePaise ?? r.pricePaise)}</span>
-            {r.discountedPricePaise && r.discountedPricePaise < r.pricePaise && (
-              <span className="text-xs text-muted-foreground line-through ml-1">{formatCurrency(r.pricePaise)}</span>
-            )}
-          </div>
-        )}
-      </div>
-    ), className: "w-28" },
-    { key: "status", header: "Status", render: (r) => (
-      <Badge variant={r.status.toLowerCase()}>{r.status}</Badge>
-    ), className: "w-24" },
-    { key: "attempts", header: "Attempts", render: (r) => <span className="tabular-nums">{r.attemptCount}</span>, className: "w-24" },
+    { key: "attempts", header: "Attempts", render: (r) => <span className="text-sm tabular-nums">{r.attemptCount}</span>, className: "w-24" },
+    { key: "status", header: "Status", render: (r) => {
+      const v = r.status.toLowerCase();
+      return <Badge variant={v}>{r.status}</Badge>;
+    }, className: "w-28" },
     { key: "actions", header: "", render: (r) => (
-      <div className="flex gap-1 justify-end">
-        <Link href={`/admin/tests/${r.id}`}>
-          <Button variant="ghost" size="icon-sm" title="Edit"><Edit className="w-3.5 h-3.5" /></Button>
-        </Link>
-        {r.status !== "ARCHIVED" && (
-          <Button variant="ghost" size="icon-sm" title="Archive" onClick={() => setConfirmArchive(r)}>
-            <Archive className="w-3.5 h-3.5" />
+      <div className="flex items-center justify-end gap-2">
+        <Link href={`/test/${r.id}`}>
+          <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs">
+            <PlayCircle className="w-3.5 h-3.5" /> Preview CBT
           </Button>
-        )}
+        </Link>
       </div>
-    ), className: "w-24" },
+    ), className: "w-32" },
   ];
 
   return (
-    <div className="space-y-5">
-      <Breadcrumbs items={[{ label: "Admin", href: "/admin" }, { label: "Mock Tests" }]} />
+    <div className="space-y-6">
+      <Breadcrumbs items={[{ label: "Tests" }]} />
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Mock Tests</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Create and manage mock tests, sectional tests, and topic drills.</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Manage mock tests, question banks, scoring schemes, and publication status.
+          </p>
         </div>
-        <Link href="/admin/tests/new">
-          <Button size="md"><Plus className="w-4 h-4" /> Create Test</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/admin/tests/import">
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Upload className="w-4 h-4" /> Import Document (.docx/.pdf)
+            </Button>
+          </Link>
+          <Link href="/admin/tests/new">
+            <Button size="sm" className="gap-1.5">
+              <Plus className="w-4 h-4" /> Create Test
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Card padding="none">
-        <div className="px-4 pt-4 sm:px-5 sm:pt-5">
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
-            <Tabs items={tabs} active={tab} onChange={setTab} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Search tests..." className="w-full sm:w-64" />
+        <div className="p-4 sm:p-5 border-b border-border space-y-4">
+          <Tabs items={tabs} active={tab} onChange={setTab} />
+          <div className="max-w-sm">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Search tests by title or exam..."
+            />
           </div>
         </div>
-        <div className="mt-3">
-          <DataTable columns={columns} data={filtered} emptyTitle="No tests found" emptyDescription="Create your first test to get started." />
-        </div>
-        <div className="px-4 pb-4 sm:px-5 sm:pb-5">
-          <Pagination page={page} totalPages={1} onPageChange={setPage} />
-        </div>
-      </Card>
 
-      <ConfirmDialog
-        open={!!confirmArchive}
-        onClose={() => setConfirmArchive(null)}
-        onConfirm={() => setConfirmArchive(null)}
-        title="Archive Test"
-        description={`Are you sure you want to archive "${confirmArchive?.title}"? Archived tests will no longer be available to students.`}
-        confirmLabel="Archive"
-        variant="danger"
-      />
+        {filtered.length > 0 ? (
+          <DataTable columns={columns} data={filtered} />
+        ) : (
+          <div className="py-16 text-center">
+            <p className="text-sm text-muted-foreground">
+              {loading ? "Loading tests from database..." : "No tests found matching your criteria."}
+            </p>
+            {!loading && (
+              <div className="mt-4 flex justify-center gap-3">
+                <Link href="/admin/tests/import">
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    <Upload className="w-4 h-4" /> Import from Document
+                  </Button>
+                </Link>
+                <Link href="/admin/tests/new">
+                  <Button size="sm" className="gap-1.5">
+                    <Plus className="w-4 h-4" /> Create Test
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

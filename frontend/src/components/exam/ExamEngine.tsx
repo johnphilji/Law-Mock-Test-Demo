@@ -1,8 +1,25 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { MockQuestion, QuestionStatus, mockSubjects } from "@/lib/mockExamData";
-import { UserCircle2, ChevronRight, X, AlertCircle, CheckCircle2, Bookmark, BookmarkCheck, ZoomIn, ZoomOut, Type, LayoutGrid } from "lucide-react";
+import { 
+  UserCircle2, 
+  ChevronRight, 
+  X, 
+  AlertCircle, 
+  CheckCircle2, 
+  Bookmark, 
+  BookmarkCheck, 
+  ZoomIn, 
+  ZoomOut, 
+  Type, 
+  LayoutGrid,
+  Loader2,
+  Check,
+  Award,
+  ArrowRight
+} from "lucide-react";
 
 // Mock objection record for local preview state
 interface ObjectionRecord {
@@ -13,7 +30,6 @@ interface ObjectionRecord {
   submittedAt: string;
 }
 
-const MOCK_ATTEMPT_ID = "mock-attempt-001";
 const MAX_WORDS = 100;
 const FONT_SIZES = ["text-[14px]", "text-[16px]", "text-[18px]", "text-[20px]"];
 
@@ -21,18 +37,45 @@ function countWords(text: string): number {
   return text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
 }
 
-interface ExamEngineProps {
+export interface ExamEngineProps {
+  attemptId?: string;
+  testTitle?: string;
+  examName?: string;
+  initialTimeSeconds?: number;
   questions: MockQuestion[];
+  initialAnswers?: Record<string, string>;
 }
 
-export default function ExamEngine({ questions }: ExamEngineProps) {
+export default function ExamEngine({
+  attemptId = "demo-attempt",
+  testTitle = "AIBE MOCK TEST 2026",
+  examName = "AIBE",
+  initialTimeSeconds = 177 * 60 + 58,
+  questions,
+  initialAnswers = {},
+}: ExamEngineProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [activeSubject, setActiveSubject] = useState(mockSubjects[0]);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [statuses, setStatuses] = useState<Record<string, QuestionStatus>>({});
+  const [activeSubject, setActiveSubject] = useState(questions[0]?.subject || "General");
+  const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers);
+  const [statuses, setStatuses] = useState<Record<string, QuestionStatus>>(() => {
+    const init: Record<string, QuestionStatus> = {};
+    for (const q of questions) {
+      if (initialAnswers[q.id]) {
+        init[q.id] = "answered";
+      }
+    }
+    if (questions[0] && !init[questions[0].id]) {
+      init[questions[0].id] = "not_answered";
+    }
+    return init;
+  });
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
-  const [timeLeft, setTimeLeft] = useState(177 * 60 + 58);
+  const [timeLeft, setTimeLeft] = useState(initialTimeSeconds);
   const [timeExpired, setTimeExpired] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedScore, setSubmittedScore] = useState<number | null>(null);
+
   // Accessibility
   const [fontSizeIdx, setFontSizeIdx] = useState(1); // default: text-[16px]
   const [magnifierOn, setMagnifierOn] = useState(false);
@@ -52,14 +95,27 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    // Mark first question as visited immediately
-    const firstQuestion = questions[0];
-    setStatuses(prev => {
-      if (!firstQuestion || prev[firstQuestion.id]) return prev;
-      return { ...prev, [firstQuestion.id]: "not_answered" };
-    });
+  // Function to persist answers to PostgreSQL
+  const persistAnswer = async (questionId: string, optionKey: string | null) => {
+    if (!attemptId || attemptId === "demo-attempt") return;
+    setSaveState("saving");
+    try {
+      const res = await fetch(`/api/attempts/${attemptId}/answer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionId, selectedOptionKey: optionKey }),
+      });
+      if (res.ok) {
+        setSaveState("saved");
+      } else {
+        setSaveState("error");
+      }
+    } catch {
+      setSaveState("error");
+    }
+  };
 
+  useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -110,12 +166,13 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
     });
 
     setCurrentQuestionIndex(index);
-    setActiveSubject(questions[index]?.subject);
+    setActiveSubject(questions[index]?.subject || "General");
   };
 
   const handleOptionSelect = (key: string) => {
     if (timeExpired || submitted) return;
     setAnswers(prev => ({ ...prev, [currentQuestion.id]: key }));
+    persistAnswer(currentQuestion.id, key);
     // Auto-update status to answered when option picked
     setStatuses(prev => {
       const cur = prev[currentQuestion.id];
@@ -136,12 +193,31 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
     });
   };
 
-  const handleSubmitExam = () => {
+  const handleSubmitExam = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     // Save current question status
     const status: QuestionStatus = answers[currentQuestion.id] ? "answered" : "not_answered";
     setStatuses(prev => ({ ...prev, [currentQuestion.id]: status }));
-    setSubmitted(true);
-    setSubmitOpen(false);
+
+    try {
+      if (attemptId && attemptId !== "demo-attempt") {
+        const res = await fetch(`/api/attempts/${attemptId}/submit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        const data = await res.json();
+        if (data.score !== undefined) {
+          setSubmittedScore(data.score);
+        }
+      }
+    } catch (err) {
+      console.error("Submission failed:", err);
+    } finally {
+      setIsSubmitting(false);
+      setSubmitted(true);
+      setSubmitOpen(false);
+    }
   };
 
   const handleSaveAndNext = () => {
@@ -166,12 +242,13 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
     const newAnswers = { ...answers };
     delete newAnswers[currentQuestion.id];
     setAnswers(newAnswers);
+    persistAnswer(currentQuestion.id, null);
     setStatuses((prev) => ({ ...prev, [currentQuestion.id]: "not_answered" }));
   };
 
   // --- Objection handlers ---
   const openObjectionModal = () => {
-    const key = `${MOCK_ATTEMPT_ID}::${currentQuestion.id}`;
+    const key = `${attemptId}::${currentQuestion.id}`;
     const existing = objections[key];
     if (existing) {
       setObjectionText(existing.text);
@@ -212,9 +289,9 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
       setObjectionError(`Word limit exceeded. Please reduce to ${MAX_WORDS} words.`);
       return;
     }
-    const key = `${MOCK_ATTEMPT_ID}::${currentQuestion.id}`;
+    const key = `${attemptId}::${currentQuestion.id}`;
     const record: ObjectionRecord = {
-      attemptId: MOCK_ATTEMPT_ID,
+      attemptId: attemptId,
       questionId: currentQuestion.id,
       questionOrder: currentQuestion.order,
       text: objectionText.trim(),
@@ -226,7 +303,7 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
   };
 
   // Check if there's an existing objection for current question
-  const hasExistingObjection = !!objections[`${MOCK_ATTEMPT_ID}::${currentQuestion.id}`];
+  const hasExistingObjection = !!objections[`${attemptId}::${currentQuestion.id}`];
   const isBookmarked = bookmarks.has(currentQuestion.id);
 
   // Computed summary for submit screen
@@ -267,31 +344,57 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
   // If exam is fully submitted, show results screen
   if (submitted) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white font-sans p-8">
-        <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mb-6 border-2 border-emerald-400/40">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white font-sans p-8">
+        <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mb-6 border-2 border-emerald-400/40 shadow-lg shadow-emerald-500/10">
           <CheckCircle2 size={44} className="text-emerald-400" strokeWidth={1.5} />
         </div>
-        <h1 className="text-3xl font-extrabold mb-2 tracking-tight">Test Submitted!</h1>
-        <p className="text-slate-400 mb-10 text-base">Your responses have been recorded successfully.</p>
-        <div className="grid grid-cols-2 gap-4 w-full max-w-md mb-10">
-          <div className="bg-white/10 rounded-2xl p-5 text-center border border-white/10">
-            <div className="text-3xl font-extrabold text-emerald-400">{finalCounts.answered}</div>
-            <div className="text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wider">Answered</div>
+        <h1 className="text-3xl font-extrabold mb-2 tracking-tight">Examination Submitted!</h1>
+        <p className="text-slate-400 mb-6 text-sm text-center max-w-md">
+          Your responses have been securely finalized and evaluated server-side.
+        </p>
+
+        {submittedScore !== null && (
+          <div className="mb-8 p-4 rounded-xl bg-white/10 border border-white/10 text-center min-w-[200px]">
+            <p className="text-xs uppercase tracking-wider text-slate-300 font-semibold">Your Final Score</p>
+            <p className="text-4xl font-black text-amber-400 mt-1">{submittedScore.toFixed(2)}</p>
           </div>
-          <div className="bg-white/10 rounded-2xl p-5 text-center border border-white/10">
-            <div className="text-3xl font-extrabold text-red-400">{finalCounts.notAnswered}</div>
-            <div className="text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wider">Not Answered</div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4 w-full max-w-md mb-8">
+          <div className="bg-white/10 rounded-2xl p-4 text-center border border-white/10">
+            <div className="text-2xl font-extrabold text-emerald-400">{finalCounts.answered}</div>
+            <div className="text-[11px] text-slate-400 mt-1 font-semibold uppercase tracking-wider">Answered</div>
           </div>
-          <div className="bg-white/10 rounded-2xl p-5 text-center border border-white/10">
-            <div className="text-3xl font-extrabold text-slate-400">{finalCounts.notVisited}</div>
-            <div className="text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wider">Not Visited</div>
+          <div className="bg-white/10 rounded-2xl p-4 text-center border border-white/10">
+            <div className="text-2xl font-extrabold text-red-400">{finalCounts.notAnswered}</div>
+            <div className="text-[11px] text-slate-400 mt-1 font-semibold uppercase tracking-wider">Not Answered</div>
           </div>
-          <div className="bg-white/10 rounded-2xl p-5 text-center border border-white/10">
-            <div className="text-3xl font-extrabold text-purple-400">{finalCounts.markedForReview}</div>
-            <div className="text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wider">Marked for Review</div>
+          <div className="bg-white/10 rounded-2xl p-4 text-center border border-white/10">
+            <div className="text-2xl font-extrabold text-slate-400">{finalCounts.notVisited}</div>
+            <div className="text-[11px] text-slate-400 mt-1 font-semibold uppercase tracking-wider">Not Visited</div>
+          </div>
+          <div className="bg-white/10 rounded-2xl p-4 text-center border border-white/10">
+            <div className="text-2xl font-extrabold text-purple-400">{finalCounts.markedForReview}</div>
+            <div className="text-[11px] text-slate-400 mt-1 font-semibold uppercase tracking-wider">Marked for Review</div>
           </div>
         </div>
-        <p className="text-slate-500 text-sm">You can close this window.</p>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          {attemptId && attemptId !== "demo-attempt" ? (
+            <Link
+              href={`/results?attemptId=${attemptId}`}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-md transition"
+            >
+              <Award className="w-4 h-4" /> View Detailed Scorecard & Solutions
+            </Link>
+          ) : null}
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-sm border border-white/20 transition"
+          >
+            Back to Dashboard
+          </Link>
+        </div>
       </div>
     );
   }
@@ -301,7 +404,7 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
       {/* Cinematic Dark Header */}
       <header className="flex justify-between items-center px-4 md:px-6 py-3 bg-slate-900 border-b border-slate-800 shadow-[0_4px_20px_rgba(0,0,0,0.2)] z-30 relative">
         <h1 className="font-extrabold text-base md:text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-amber-400 to-yellow-200 truncate pr-2">
-          PANTHER LAW PREP <span className="font-medium text-slate-400 text-xs md:text-sm ml-1 md:ml-2 tracking-normal hidden sm:inline">| AIBE MOCK TEST 2026</span>
+          PANTHER LAW PREP <span className="font-medium text-slate-400 text-xs md:text-sm ml-1 md:ml-2 tracking-normal hidden sm:inline">| {testTitle}</span>
         </h1>
         <div className="flex gap-2 items-center">
           {/* Font size accessibility controls */}
@@ -352,7 +455,7 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
           {/* Clean Info + Timer Bar (replaces subject tabs) */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-2.5 border-b border-slate-100 bg-slate-50/60 gap-3 sm:gap-0">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-slate-500">
-              <span className="font-bold text-slate-800 text-sm sm:text-base hidden sm:inline">AIBE 2026</span>
+              <span className="font-bold text-slate-800 text-sm sm:text-base hidden sm:inline">{examName}</span>
               <span className="hidden sm:inline w-px h-4 bg-slate-300" />
               <span className="font-medium">
                 Question <span className="font-bold text-slate-800">{currentQuestion.order}</span>
@@ -384,6 +487,21 @@ export default function ExamEngine({ questions }: ExamEngineProps) {
           <div className="flex justify-between items-start sm:items-center px-4 sm:px-8 py-3 sm:py-4 border-b border-slate-100 bg-slate-50/50 flex-col sm:flex-row gap-3 sm:gap-0">
             <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto justify-between sm:justify-start">
               <h2 className="font-extrabold text-slate-800 text-xl sm:text-2xl tracking-tight">Question {currentQuestion.order}</h2>
+              {saveState === "saving" && (
+                <span className="inline-flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full animate-pulse border border-blue-200">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Saving...
+                </span>
+              )}
+              {saveState === "saved" && (
+                <span className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                  <Check className="w-3 h-3" /> Saved
+                </span>
+              )}
+              {saveState === "error" && (
+                <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                  <AlertCircle className="w-3 h-3" /> Retrying...
+                </span>
+              )}
               <button
                 onClick={toggleBookmark}
                 title={isBookmarked ? "Remove bookmark" : "Bookmark this question"}
