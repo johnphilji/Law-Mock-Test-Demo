@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, PasswordInput, Checkbox } from "@/components/ui/input";
 import { Alert } from "@/components/ui/components";
+import { OAuthButtons } from "@/components/auth/OAuthButtons";
 
 function LoginForm() {
   const router = useRouter();
@@ -15,6 +16,18 @@ function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const oauthError = searchParams.get("error");
+  const displayError =
+    error ||
+    (oauthError === "oauth_failed"
+      ? "Authentication with external provider was cancelled or encountered an error."
+      : oauthError === "invalid_grant"
+      ? "OAuth session expired. Please sign in again."
+      : oauthError === "no_email"
+      ? "Your OAuth account did not provide a verified email address."
+      : oauthError === "access_denied"
+      ? "Access was denied by the external provider."
+      : oauthError);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const validate = (): boolean => {
@@ -141,9 +154,9 @@ function LoginForm() {
               </p>
             </div>
 
-            {error && (
+            {displayError && (
               <Alert variant="error" className="mb-5">
-                {error}
+                {displayError}
               </Alert>
             )}
 
@@ -196,6 +209,8 @@ function LoginForm() {
                 Sign In
               </Button>
             </form>
+
+            <OAuthButtons />
 
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">

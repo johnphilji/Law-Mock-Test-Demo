@@ -51,10 +51,20 @@ function ResultsContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AttemptResultData | null>(null);
+  const [pastAttempts, setPastAttempts] = useState<any[]>([]);
 
   useEffect(() => {
     if (!attemptId) {
-      setLoading(false);
+      // Fetch past completed attempts for the current user
+      fetch("/api/attempts")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.attempts) {
+            setPastAttempts(data.attempts);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
       return;
     }
 
@@ -76,20 +86,66 @@ function ResultsContent() {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-slate-600">
         <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-3" />
-        <p className="text-sm font-medium">Generating official scorecard...</p>
+        <p className="text-sm font-medium">Loading evaluation and scorecards...</p>
       </div>
     );
   }
 
   if (error || !result) {
+    if (!attemptId && pastAttempts.length > 0) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Your Exam Scorecards & Analytics</h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Select any completed attempt below to view detailed question-level explanations, time spent, and marks.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+            <div className="divide-y divide-slate-100">
+              {pastAttempts.map((att) => (
+                <div key={att.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-50 text-blue-700">
+                        {att.examName}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        Submitted {new Date(att.submittedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900">{att.testTitle}</h3>
+                    <div className="flex items-center gap-4 text-xs text-slate-500 mt-2">
+                      <span className="font-semibold text-emerald-600">Score: {att.score.toFixed(2)} / {att.totalMarks.toFixed(2)}</span>
+                      <span>Accuracy: {att.correctCount + att.incorrectCount > 0 ? Math.round((att.correctCount / (att.correctCount + att.incorrectCount)) * 100) : 0}%</span>
+                      <span>Correct: {att.correctCount}</span>
+                      <span>Incorrect: {att.incorrectCount}</span>
+                    </div>
+                  </div>
+
+                  <Link
+                    href={`/results?attemptId=${att.id}`}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs shadow-xs transition shrink-0"
+                  >
+                    <Award className="w-3.5 h-3.5" /> View Solutions & Scorecard
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center max-w-lg mx-auto">
         <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-3">
           <AlertCircle className="w-6 h-6" />
         </div>
-        <h2 className="text-lg font-bold text-slate-800">No Result Selected</h2>
+        <h2 className="text-lg font-bold text-slate-800">{error ? "Error Loading Result" : "No Past Attempts Yet"}</h2>
         <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-          {error || "Please complete an exam attempt from your dashboard to view your official evaluation and solutions."}
+          {error || "You have not completed any mock tests yet. Take an authentic CBT test from your dashboard to view your scorecards here."}
         </p>
         <div className="mt-6">
           <Link

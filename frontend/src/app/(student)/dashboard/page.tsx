@@ -29,6 +29,7 @@ interface TestItem {
 
 interface DashboardStats {
   testsAttempted: number;
+  totalSessions?: number;
   enrolledCount: number;
   allIndiaPercentile: number | null;
   averageAccuracy: number | null;
@@ -48,14 +49,18 @@ export default function StudentDashboard() {
   const [enrolledTests, setEnrolledTests] = useState<TestItem[]>([]);
   const [exploreTests, setExploreTests] = useState<TestItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isEmailVerified, setIsEmailVerified] = useState<boolean>(true);
+  const [userEmail, setUserEmail] = useState<string>("");
 
   useEffect(() => {
     // Fetch authenticated user
     fetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.user?.name) {
-          setUserName(data.user.name);
+        if (data?.user) {
+          if (data.user.name) setUserName(data.user.name);
+          if (data.user.email) setUserEmail(data.user.email);
+          setIsEmailVerified(Boolean(data.user.isEmailVerified));
         }
       })
       .catch(() => {});
@@ -76,6 +81,28 @@ export default function StudentDashboard() {
 
   return (
     <div className="space-y-8">
+      {!isEmailVerified && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-amber-900">Email Verification Pending</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Please verify <span className="font-medium">{userEmail}</span> to ensure access to full scorecards, all-India ranks, and proctored mock exams.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/account"
+            className="px-4 py-2 text-xs font-bold text-amber-900 bg-amber-200 hover:bg-amber-300 rounded-lg transition shrink-0"
+          >
+            Verify Now
+          </Link>
+        </div>
+      )}
+
       {/* Welcome Banner */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 p-8 text-white shadow-lg">
         <div className="relative z-10 max-w-2xl space-y-3">
@@ -116,10 +143,15 @@ export default function StudentDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200/90 shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tests Attempted</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tests Completed</p>
             <h3 className="text-2xl font-bold text-slate-900 mt-1">
               {stats.testsAttempted} <span className="text-xs text-slate-400 font-normal">/ {stats.enrolledCount} Enrolled</span>
             </h3>
+            {stats.totalSessions && stats.totalSessions > stats.testsAttempted ? (
+              <p className="text-[11px] text-blue-600 font-medium mt-0.5">
+                {stats.totalSessions} total attempt sessions
+              </p>
+            ) : null}
           </div>
           <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
             <FileCheck2 className="w-6 h-6" />

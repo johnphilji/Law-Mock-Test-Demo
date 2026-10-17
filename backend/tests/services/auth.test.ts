@@ -148,7 +148,8 @@ describe("Authentication & Authorization System (Phase 1)", () => {
     });
 
     expect(user).not.toBeNull();
-    const isPasswordValid = await verify(user!.passwordHash, testStudentPassword);
+    expect(user!.passwordHash).not.toBeNull();
+    const isPasswordValid = await verify(user!.passwordHash!, testStudentPassword);
     expect(isPasswordValid).toBe(true);
 
     // Issue session token
@@ -176,7 +177,8 @@ describe("Authentication & Authorization System (Phase 1)", () => {
     });
 
     expect(user).not.toBeNull();
-    const isPasswordValid = await verify(user!.passwordHash, "WrongPassword@999");
+    expect(user!.passwordHash).not.toBeNull();
+    const isPasswordValid = await verify(user!.passwordHash!, "WrongPassword@999");
     expect(isPasswordValid).toBe(false);
   });
 

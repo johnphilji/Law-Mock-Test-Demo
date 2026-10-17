@@ -2,10 +2,13 @@
 
 import { useState, useMemo, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, PasswordInput, Checkbox } from "@/components/ui/input";
 import { Alert } from "@/components/ui/components";
 import { PASSWORD_MIN_LENGTH } from "@/lib/constants";
+import { OAuthButtons } from "@/components/auth/OAuthButtons";
+import { OtpVerificationDialog } from "@/components/auth/OtpVerificationDialog";
 
 function PasswordStrength({ password }: { password: string }) {
   const checks = useMemo(() => {
@@ -105,6 +108,11 @@ export default function RegisterPage() {
     return Object.keys(errors).length === 0;
   };
 
+  const router = useRouter();
+  const [showOtpModal, setShowOtpModal] = useState(false);
+
+  const [initialDevOtp, setInitialDevOtp] = useState<string | null>(null);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -134,8 +142,23 @@ export default function RegisterPage() {
         return;
       }
 
+      // Automatically request 6-digit email OTP
+      try {
+        const otpRes = await fetch("/api/auth/otp/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: formData.email.trim() }),
+        });
+        const otpData = await otpRes.json();
+        if (otpData.devOtp) {
+          setInitialDevOtp(otpData.devOtp);
+        }
+      } catch {
+        // Continue even if immediate trigger has warning
+      }
+
       setLoading(false);
-      setSuccess(true);
+      setShowOtpModal(true);
     } catch {
       setError("Network error connecting to the registration service. Please try again.");
       setLoading(false);
@@ -320,6 +343,8 @@ export default function RegisterPage() {
               </Button>
             </form>
 
+            <OAuthButtons />
+
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">
                 Already have an account?{" "}
@@ -334,6 +359,25 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
+
+      {showOtpModal && (
+        <OtpVerificationDialog
+          type="email"
+          target={formData.email.trim()}
+          isOpen={showOtpModal}
+          initialDevOtp={initialDevOtp}
+          onSuccess={() => {
+            setShowOtpModal(false);
+            setSuccess(true);
+          }}
+          onClose={() => {
+            setShowOtpModal(false);
+            router.push("/dashboard");
+          }}
+          title="Verify Your Email Address"
+          description={`We sent a 6-digit confirmation code to ${formData.email}. Complete verification to unlock mock tests.`}
+        />
+      )}
     </div>
   );
 }

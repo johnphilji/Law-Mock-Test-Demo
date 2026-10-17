@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, Badge, DataTable, Breadcrumbs, Tabs, SearchInput, type Column, type TabItem } from "@/components/ui/components";
-import { formatDate, formatCurrency } from "@/utils/formatters";
-import { Plus, Upload, PlayCircle } from "lucide-react";
+import { Plus, Upload, PlayCircle, RefreshCw, CheckCircle, Archive, AlertCircle } from "lucide-react";
 
 interface RealTestAdmin {
   id: string;
@@ -28,23 +27,55 @@ interface RealTestAdmin {
 export default function TestsPage() {
   const [tests, setTests] = useState<RealTestAdmin[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
 
-  useEffect(() => {
-    fetch("/api/admin/tests")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.tests && Array.isArray(data.tests)) {
-          setTests(data.tests);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const fetchTests = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/tests");
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `Failed to fetch tests (${res.status})`);
+      }
+      const data = await res.json();
+      setTests(data.tests || []);
+    } catch (err: any) {
+      setError(err.message || "Failed to load tests from database");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchTests();
+  }, [fetchTests]);
+
+  const handleUpdateStatus = async (testId: string, status: "PUBLISHED" | "DRAFT" | "ARCHIVED") => {
+    try {
+      const res = await fetch("/api/admin/tests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: testId, status }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Failed to update test status");
+      }
+
+      await fetchTests();
+    } catch (err: any) {
+      alert(err.message || "Failed to update status");
+    }
+  };
+
   const filtered = tests.filter((t) => {
-    if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !t.title.toLowerCase().includes(search.toLowerCase()) && !t.examName.toLowerCase().includes(search.toLowerCase())) {
+      return false;
+    }
     if (tab === "draft" && t.status !== "DRAFT") return false;
     if (tab === "published" && t.status !== "PUBLISHED") return false;
     if (tab === "archived" && t.status !== "ARCHIVED") return false;
@@ -59,9 +90,9 @@ export default function TestsPage() {
   ];
 
   const columns: Column<RealTestAdmin>[] = [
-    { key: "title", header: "Test", render: (r) => (
+    { key: "title", header: "Mock Test", render: (r) => (
       <div>
-        <Link href={`/test/${r.id}`} className="font-medium text-foreground hover:text-brand-700 transition-colors flex items-center gap-1.5">
+        <Link href={`/test/${r.id}`} className="font-semibold text-foreground hover:text-brand-700 transition-colors flex items-center gap-1.5 text-sm">
           {r.title}
         </Link>
         <div className="flex items-center gap-1.5 mt-0.5">
@@ -70,36 +101,82 @@ export default function TestsPage() {
         </div>
       </div>
     )},
-    { key: "questions", header: "Questions", render: (r) => <span className="tabular-nums font-semibold">{r.totalQuestions}</span>, className: "w-24" },
-    { key: "duration", header: "Duration", render: (r) => <span className="text-sm">{r.durationMinutes} min</span>, className: "w-24" },
-    { key: "attempts", header: "Attempts", render: (r) => <span className="text-sm tabular-nums">{r.attemptCount}</span>, className: "w-24" },
+    { key: "questions", header: "Questions", render: (r) => (
+      <span className="tabular-nums font-semibold text-sm">{r.totalQuestions}</span>
+    ), className: "w-24" },
+    { key: "duration", header: "Duration", render: (r) => (
+      <span className="text-xs text-slate-700">{r.durationMinutes} min</span>
+    ), className: "w-24" },
+    { key: "attempts", header: "Attempts", render: (r) => (
+      <span className="text-xs font-semibold tabular-nums text-slate-800">
+        {r.attemptCount} candidate{r.attemptCount !== 1 ? "s" : ""}
+      </span>
+    ), className: "w-28" },
     { key: "status", header: "Status", render: (r) => {
       const v = r.status.toLowerCase();
       return <Badge variant={v}>{r.status}</Badge>;
     }, className: "w-28" },
     { key: "actions", header: "", render: (r) => (
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex items-center justify-end gap-1.5">
         <Link href={`/test/${r.id}`}>
-          <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs">
-            <PlayCircle className="w-3.5 h-3.5" /> Preview CBT
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
+            <PlayCircle className="w-3.5 h-3.5" /> Preview
           </Button>
         </Link>
+        {r.status === "DRAFT" ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-emerald-700 hover:text-emerald-800 gap-1"
+            onClick={() => handleUpdateStatus(r.id, "PUBLISHED")}
+          >
+            <CheckCircle className="w-3 h-3" /> Publish
+          </Button>
+        ) : r.status === "PUBLISHED" ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-slate-500 hover:text-slate-800 gap-1"
+            onClick={() => handleUpdateStatus(r.id, "ARCHIVED")}
+          >
+            <Archive className="w-3 h-3" /> Archive
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-brand-700 hover:text-brand-800"
+            onClick={() => handleUpdateStatus(r.id, "DRAFT")}
+          >
+            Restore
+          </Button>
+        )}
       </div>
-    ), className: "w-32" },
+    ), className: "w-44" },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12 font-sans">
       <Breadcrumbs items={[{ label: "Tests" }]} />
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Mock Tests</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Manage mock tests, question banks, scoring schemes, and publication status.
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Mock Examination Papers</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Manage mock test papers, question pools, scoring schemes, and publication lifecycle.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchTests}
+            disabled={loading}
+            className="gap-1.5"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-brand-600" : ""}`} />
+            Refresh
+          </Button>
           <Link href="/admin/tests/import">
             <Button variant="outline" size="sm" className="gap-1.5">
               <Upload className="w-4 h-4" /> Import Document (.docx/.pdf)
@@ -113,6 +190,17 @@ export default function TestsPage() {
         </div>
       </div>
 
+      {error && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-500" />
+          <div className="flex-1">
+            <p className="font-semibold">Error querying tests</p>
+            <p className="text-xs mt-0.5">{error}</p>
+          </div>
+          <button onClick={fetchTests} className="text-xs font-semibold underline">Retry</button>
+        </div>
+      )}
+
       <Card padding="none">
         <div className="p-4 sm:p-5 border-b border-border space-y-4">
           <Tabs items={tabs} active={tab} onChange={setTab} />
@@ -125,27 +213,31 @@ export default function TestsPage() {
           </div>
         </div>
 
-        {filtered.length > 0 ? (
+        {loading ? (
+          <div className="p-16 text-center text-xs text-muted-foreground space-y-2">
+            <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p>Loading mock tests from PostgreSQL...</p>
+          </div>
+        ) : filtered.length > 0 ? (
           <DataTable columns={columns} data={filtered} />
         ) : (
           <div className="py-16 text-center">
-            <p className="text-sm text-muted-foreground">
-              {loading ? "Loading tests from database..." : "No tests found matching your criteria."}
+            <p className="text-sm font-semibold text-slate-800">No mock tests found</p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+              {search ? "No tests matched your search query." : "Upload a .docx/.pdf mock test or create a new test blueprint."}
             </p>
-            {!loading && (
-              <div className="mt-4 flex justify-center gap-3">
-                <Link href="/admin/tests/import">
-                  <Button size="sm" variant="outline" className="gap-1.5">
-                    <Upload className="w-4 h-4" /> Import from Document
-                  </Button>
-                </Link>
-                <Link href="/admin/tests/new">
-                  <Button size="sm" className="gap-1.5">
-                    <Plus className="w-4 h-4" /> Create Test
-                  </Button>
-                </Link>
-              </div>
-            )}
+            <div className="mt-4 flex justify-center gap-3">
+              <Link href="/admin/tests/import">
+                <Button size="sm" variant="outline" className="gap-1.5">
+                  <Upload className="w-4 h-4" /> Import from Document
+                </Button>
+              </Link>
+              <Link href="/admin/tests/new">
+                <Button size="sm" className="gap-1.5">
+                  <Plus className="w-4 h-4" /> Create Test
+                </Button>
+              </Link>
+            </div>
           </div>
         )}
       </Card>

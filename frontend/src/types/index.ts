@@ -128,6 +128,16 @@ export interface ExamQuestion {
   negativeMarks: number;
 }
 
+export type CbtQuestionStatus = "not_visited" | "not_answered" | "answered" | "marked" | "answered_marked";
+
+export interface CbtQuestion {
+  id: string;
+  order: number;
+  subject: string;
+  text: string;
+  options: { key: string; text: string }[];
+}
+
 /**
  * Question data shown during result review.
  * Includes the correct answer and explanation.

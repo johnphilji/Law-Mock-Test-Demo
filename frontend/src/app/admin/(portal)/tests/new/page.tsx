@@ -10,7 +10,9 @@ import {
   Trash2, 
   Settings, 
   FileCheck, 
-  Award
+  Award,
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 
 export default function NewTestBuilderPage() {
@@ -18,31 +20,32 @@ export default function NewTestBuilderPage() {
   
   // Test paper metadata
   const [title, setTitle] = useState("");
-  const [examName, setExamName] = useState("CLAT UG 2026");
+  const [examName, setExamName] = useState("All India Bar Examination (AIBE) XXI");
   const [type, setType] = useState<"MOCK" | "SECTIONAL" | "TOPIC">("MOCK");
-  const [durationMinutes, setDurationMinutes] = useState(120);
+  const [durationMinutes, setDurationMinutes] = useState(210);
   const [priceRupees, setPriceRupees] = useState(299);
   const [discountRupees, setDiscountRupees] = useState(199);
   const [isFree, setIsFree] = useState(false);
   
   // Marking scheme
   const [correctMarks, setCorrectMarks] = useState(1.0);
-  const [negativeMarks, setNegativeMarks] = useState(0.25);
+  const [negativeMarks, setNegativeMarks] = useState(0.0);
 
-  // Sections
+  // Sections Blueprint
   const [sections, setSections] = useState([
-    { id: "sec_1", name: "Section A: Legal Reasoning", questionCount: 30, cutoff: 12 },
-    { id: "sec_2", name: "Section B: Current Affairs & GK", questionCount: 25, cutoff: 10 },
-    { id: "sec_3", name: "Section C: Logical Reasoning", questionCount: 25, cutoff: 8 },
+    { id: "sec_1", name: "Section A: Constitutional Law & IPC", questionCount: 30 },
+    { id: "sec_2", name: "Section B: CrPC, Evidence & CPC", questionCount: 30 },
+    { id: "sec_3", name: "Section C: Commercial & Special Laws", questionCount: 40 },
   ]);
 
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleAddSection = () => {
     const nextIdx = sections.length + 1;
     setSections([
       ...sections,
-      { id: `sec_${Date.now()}`, name: `Section ${String.fromCharCode(64 + nextIdx)}: New Section`, questionCount: 20, cutoff: 5 }
+      { id: `sec_${Date.now()}`, name: `Section ${String.fromCharCode(64 + nextIdx)}: New Section`, questionCount: 20 }
     ]);
   };
 
@@ -50,50 +53,96 @@ export default function NewTestBuilderPage() {
     setSections(sections.filter(s => s.id !== id));
   };
 
-  const handleSave = () => {
-    if (!title.trim()) {
-      alert("Please provide a Title for the mock test.");
-      return;
-    }
-    setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
-      router.push("/admin/tests");
-    }, 1200);
-  };
-
   const totalQuestions = sections.reduce((acc, curr) => acc + Number(curr.questionCount || 0), 0);
   const maxMarks = totalQuestions * correctMarks;
 
+  const handleSave = async (publishDirectly: boolean) => {
+    if (!title.trim()) {
+      setError("Please provide a Title for the mock test.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/admin/tests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          examName: examName.trim(),
+          type,
+          durationMinutes: Number(durationMinutes) || 120,
+          totalMarks: maxMarks,
+          negativeMarking: Number(negativeMarks) || 0,
+          status: publishDirectly ? "PUBLISHED" : "DRAFT",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create test blueprint in database");
+      }
+
+      router.push("/admin/tests");
+    } catch (err: any) {
+      setError(err.message || "Failed to save test blueprint");
+      setSaving(false);
+    }
+  };
+
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12 font-sans">
+    <div className="space-y-6 max-w-5xl mx-auto pb-16 font-sans">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
           <Link href="/admin/tests" className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Test Management
           </Link>
-          <h1 className="text-2xl font-bold text-slate-900 mt-1">NTA Mock Test Blueprint Builder</h1>
-          <p className="text-xs text-slate-500">Configure exam parameters, section cutoffs, duration, and pricing tier.</p>
+          <h1 className="text-2xl font-bold text-slate-900 mt-1">CBT Mock Test Blueprint Builder</h1>
+          <p className="text-xs text-slate-500">Configure exam parameters, section breakdown, duration, and save directly to PostgreSQL.</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={() => router.push("/admin/tests")}
+            disabled={saving}
             className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
           >
             Cancel
           </button>
           <button
-            onClick={handleSave}
+            onClick={() => handleSave(false)}
             disabled={saving}
-            className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 transition"
+            className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold shadow-xs transition"
           >
-            <Save className="w-4 h-4" />
-            {saving ? "Publishing Test..." : "Save & Publish Test"}
+            Save as Draft
+          </button>
+          <button
+            onClick={() => handleSave(true)}
+            disabled={saving}
+            className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 transition"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Saving to Database...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" /> Save & Publish Test
+              </>
+            )}
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+          <span>{error}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Configuration (2 cols) */}
@@ -111,24 +160,21 @@ export default function NewTestBuilderPage() {
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. All-India CLAT 2026 Grand Mock Test #03"
+                  placeholder="e.g. AIBE XXI All-India Grand Mock Test #01"
                   className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Target Exam</label>
-                  <select
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Target Examination</label>
+                  <input
+                    type="text"
                     value={examName}
                     onChange={(e) => setExamName(e.target.value)}
+                    placeholder="e.g. All India Bar Examination (AIBE) XXI"
                     className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs bg-white"
-                  >
-                    <option value="CLAT UG 2026">CLAT UG 2026</option>
-                    <option value="AILET 2026">AILET 2026</option>
-                    <option value="Judiciary Preliminary">Judiciary Preliminary</option>
-                    <option value="CUET PG Law">CUET PG Law</option>
-                  </select>
+                  />
                 </div>
 
                 <div>
@@ -157,9 +203,9 @@ export default function NewTestBuilderPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Test Mode</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Examination Mode</label>
                   <div className="px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600 font-medium">
-                    Strict Proctored (NTA CBT Single Window)
+                    Strict Proctored (NTA CBT Full Window)
                   </div>
                 </div>
               </div>
@@ -228,7 +274,7 @@ export default function NewTestBuilderPage() {
           </div>
         </div>
 
-        {/* Sidebar Summary & Pricing (1 col) */}
+        {/* Sidebar Summary & Marking Rules (1 col) */}
         <div className="space-y-6">
           {/* Marking Rules */}
           <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-2xs space-y-4">
@@ -272,9 +318,9 @@ export default function NewTestBuilderPage() {
             </div>
           </div>
 
-          {/* Pricing & Commercials */}
+          {/* Commercials */}
           <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-2xs space-y-4">
-            <h2 className="text-sm font-bold text-slate-900">Commercials & Monetization</h2>
+            <h2 className="text-sm font-bold text-slate-900">Commercials & Access Tier</h2>
 
             <div className="space-y-3 text-xs">
               <div className="flex items-center gap-2">
@@ -286,7 +332,7 @@ export default function NewTestBuilderPage() {
                   className="rounded text-blue-600"
                 />
                 <label htmlFor="isFree" className="text-slate-700 font-medium cursor-pointer">
-                  Make this test Free (Open Demo)
+                  Make this test Free (Open Demo Mock)
                 </label>
               </div>
 

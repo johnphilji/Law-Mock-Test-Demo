@@ -36,8 +36,15 @@ export default function Home() {
             <a href="#faq">FAQ</a>
           </div>
           <div className="nav-cta">
-            <button className="btn btn-ghost btn-sm" onClick={handleLogin}>Log in</button>
-            <button className="btn btn-primary btn-sm" onClick={handlePay}>Sign up</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => router.push("/login")}>
+              Student Login
+            </button>
+            <button className="btn btn-dark btn-sm" onClick={() => router.push("/admin/login")}>
+              Admin Portal
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={() => router.push("/register")}>
+              Sign up
+            </button>
           </div>
           <button
             className="nav-menu-toggle"
@@ -52,8 +59,15 @@ export default function Home() {
           <a href="#features" onClick={() => setMobileNavOpen(false)}>Test Series</a>
           <a href="#pricing" onClick={() => setMobileNavOpen(false)}>Pricing</a>
           <a href="#faq" onClick={() => setMobileNavOpen(false)}>FAQ</a>
-          <button className="btn btn-ghost btn-sm" style={{margin:"8px 24px 0"}} onClick={handleLogin}>Log in</button>
-          <button className="btn btn-primary btn-sm" style={{margin:"8px 24px 0"}} onClick={handlePay}>Sign up</button>
+          <button className="btn btn-ghost btn-sm" style={{margin:"8px 24px 0"}} onClick={() => { setMobileNavOpen(false); router.push("/login"); }}>
+            Student Login
+          </button>
+          <button className="btn btn-dark btn-sm" style={{margin:"8px 24px 0"}} onClick={() => { setMobileNavOpen(false); router.push("/admin/login"); }}>
+            Admin Portal
+          </button>
+          <button className="btn btn-primary btn-sm" style={{margin:"8px 24px 0"}} onClick={() => { setMobileNavOpen(false); router.push("/register"); }}>
+            Sign up
+          </button>
         </div>
       </nav>
 
@@ -66,7 +80,7 @@ export default function Home() {
             <p className="lede">Full-length mock tests, section-wise papers and topic drills built to the AIBE pattern — negative-marking-free MCQs across all 19 subjects, with instant scoring.</p>
             <div className="hero-actions">
               <button className="btn btn-primary" onClick={handlePay}>Get 30-day access — ₹49</button>
-              <a className="btn btn-ghost" href="#features">See what's inside</a>
+              <a className="btn btn-ghost" href="#features">See what&apos;s inside</a>
             </div>
             <div className="hero-note"><strong>No subscription trap.</strong> One payment, thirty days, full access — then it simply locks.</div>
           </div>
@@ -85,9 +99,9 @@ export default function Home() {
 
         <div className="section reveal in-view" id="features">
           <div className="section-head">
-            <div className="kicker">What's inside</div>
+            <div className="kicker">What&apos;s inside</div>
             <h2>Three ways to drill, one exam pattern.</h2>
-            <p>Every question is written to the AIBE's open-book, multiple-choice format so the format itself stops being a surprise on exam day.</p>
+            <p>Every question is written to the AIBE&apos;s open-book, multiple-choice format so the format itself stops being a surprise on exam day.</p>
           </div>
           <div className="grid-3">
             <div className="feature-card">
@@ -157,7 +171,7 @@ export default function Home() {
             </details>
             <details className="faq-item">
               <summary>Is this affiliated with the Bar Council of India?</summary>
-              <p>No. Panther Law Prep is an independent mock-test resource built to the AIBE's pattern — it isn't run or endorsed by the Bar Council of India.</p>
+              <p>No. Panther Law Prep is an independent mock-test resource built to the AIBE&apos;s pattern — it isn&apos;t run or endorsed by the Bar Council of India.</p>
             </details>
             <details className="faq-item">
               <summary>Can I retake a test as many times as I want?</summary>
@@ -165,7 +179,7 @@ export default function Home() {
             </details>
             <details className="faq-item">
               <summary>Do you offer refunds?</summary>
-              <p>Since ₹49 unlocks the full library instantly, we don't offer refunds once a payment is made — the price is intentionally kept low so you can try it without much risk.</p>
+              <p>Since ₹49 unlocks the full library instantly, we don&apos;t offer refunds once a payment is made — the price is intentionally kept low so you can try it without much risk.</p>
             </details>
             <details className="faq-item">
               <summary>Will more tests be added during my 30 days?</summary>

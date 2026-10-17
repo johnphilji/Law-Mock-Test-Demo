@@ -23,10 +23,8 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    setSubmitted(true);
+    // Self-service email delivery is disabled until email provider verification.
+    setFieldError("Self-service reset is temporarily unavailable. Please contact support@pantherlawprep.com.");
   };
 
   return (

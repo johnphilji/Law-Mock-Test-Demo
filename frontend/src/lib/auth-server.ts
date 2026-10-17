@@ -40,6 +40,24 @@ export async function requireAuth(): Promise<UserSession> {
 }
 
 /**
+ * Enforces that a user has verified their email address before accessing paid/active exams or checkout.
+ */
+export async function requireVerifiedEmail(): Promise<UserSession> {
+  const session = await requireAuth();
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.id },
+    select: { isEmailVerified: true },
+  });
+
+  if (!user?.isEmailVerified) {
+    throw new AuthError("Email verification required. Please verify your email in Account Settings.", 403);
+  }
+
+  return session;
+}
+
+/**
  * Enforces that a request has a valid user session with ADMIN role.
  */
 export async function requireAdmin(): Promise<UserSession> {

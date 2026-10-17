@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { MockQuestion, QuestionStatus, mockSubjects } from "@/lib/mockExamData";
+import type { CbtQuestion, CbtQuestionStatus } from "@/types";
+
+type QuestionStatus = CbtQuestionStatus;
 import { 
   UserCircle2, 
   ChevronRight, 
@@ -21,7 +23,7 @@ import {
   ArrowRight
 } from "lucide-react";
 
-// Mock objection record for local preview state
+// Objection record for candidate feedback
 interface ObjectionRecord {
   attemptId: string;
   questionId: string;
@@ -42,7 +44,7 @@ export interface ExamEngineProps {
   testTitle?: string;
   examName?: string;
   initialTimeSeconds?: number;
-  questions: MockQuestion[];
+  questions: CbtQuestion[];
   initialAnswers?: Record<string, string>;
 }
 
@@ -57,8 +59,8 @@ export default function ExamEngine({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [activeSubject, setActiveSubject] = useState(questions[0]?.subject || "General");
   const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers);
-  const [statuses, setStatuses] = useState<Record<string, QuestionStatus>>(() => {
-    const init: Record<string, QuestionStatus> = {};
+  const [statuses, setStatuses] = useState<Record<string, CbtQuestionStatus>>(() => {
+    const init: Record<string, CbtQuestionStatus> = {};
     for (const q of questions) {
       if (initialAnswers[q.id]) {
         init[q.id] = "answered";

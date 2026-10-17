@@ -50,7 +50,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // 3. Verify Argon2 password hash
+    // 3. Check if account is password-less (e.g. created via Google / Microsoft OAuth)
+    if (!user.passwordHash) {
+      return NextResponse.json(
+        {
+          error:
+            "This account was created via social login. Please sign in using Google or Microsoft.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // 4. Verify Argon2 password hash
     const isValid = await verify(user.passwordHash, password);
     if (!isValid) {
       return NextResponse.json(

@@ -10,8 +10,10 @@ import {
   CheckCircle2, 
   Trash2,
   ArrowRight,
-  QrCode
+  Loader2,
+  AlertCircle
 } from "lucide-react";
+
 interface TestItem {
   id: string;
   title: string;
@@ -24,6 +26,12 @@ interface TestItem {
   isFree?: boolean;
 }
 
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
+
 function CheckoutContent() {
   const searchParams = useSearchParams();
   
@@ -31,16 +39,31 @@ function CheckoutContent() {
   const cartParam = searchParams.get("cart");
 
   const [selectedItems, setSelectedItems] = useState<TestItem[]>([]);
-  const [gateway, setGateway] = useState<"RAZORPAY" | "STRIPE" | "UPI">("RAZORPAY");
   const [loading, setLoading] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [enrollmentResult, setEnrollmentResult] = useState<{ subscriptionId: string } | null>(null);
+
+  // Load Razorpay official checkout.js script safely
+  useEffect(() => {
+    if (typeof window !== "undefined" && !window.Razorpay) {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
 
   useEffect(() => {
     let ids: string[] = [];
     if (cartParam) {
-      ids = cartParam.split(",");
+      ids = cartParam.split(",").filter(Boolean);
     } else if (testIdParam) {
       ids = [testIdParam];
+    }
+
+    if (ids.length === 0) {
+      return;
     }
 
     fetch("/api/tests")
@@ -48,12 +71,8 @@ function CheckoutContent() {
       .then((data) => {
         if (data?.tests && Array.isArray(data.tests)) {
           const allTests: TestItem[] = data.tests;
-          if (ids.length > 0) {
-            const matched = allTests.filter((t) => ids.includes(t.id));
-            setSelectedItems(matched.length > 0 ? matched : allTests.slice(0, 1));
-          } else {
-            setSelectedItems(allTests.slice(0, 1));
-          }
+          const matched = allTests.filter((t) => ids.includes(t.id));
+          setSelectedItems(matched);
         }
       })
       .catch(() => {});
@@ -63,14 +82,18 @@ function CheckoutContent() {
     setSelectedItems(prev => prev.filter(i => i.id !== id));
   };
 
-  const subtotal = selectedItems.reduce((acc, curr) => acc + (curr.discountedPricePaise || curr.pricePaise), 0);
-  const gst = Math.round(subtotal * 0.18);
-  const total = subtotal + gst;
+  // Fixed server-authoritative subscription plan price (₹49 for 30 Days Access)
+  const planPricePaise = 4900;
+  const planPriceInr = 49;
 
-  const handleProcessPayment = async () => {
+  const handleStartRazorpayCheckout = async () => {
+    if (selectedItems.length === 0) return;
     setLoading(true);
+    setError(null);
+
     try {
-      const res = await fetch("/api/student/enroll", {
+      // 1. Create order on the server
+      const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -78,46 +101,119 @@ function CheckoutContent() {
         }),
       });
 
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error("Enrollment failed");
+        throw new Error(data.error || "Unable to initiate payment session");
       }
 
-      setPaymentSuccess(true);
-    } catch (err) {
-      console.error(err);
-      setPaymentSuccess(true);
-    } finally {
+      const { orderId, amount, currency, keyId, student } = data;
+
+      if (!window.Razorpay) {
+        throw new Error("Razorpay checkout engine is loading. Please try again in a few seconds.");
+      }
+
+      // 2. Configure Razorpay Standard Checkout modal
+      const options = {
+        key: keyId,
+        amount: amount,
+        currency: currency || "INR",
+        name: "Panther Law Prep",
+        description: "All-India Mock Test Access (30 Days)",
+        order_id: orderId,
+        prefill: {
+          name: student?.name || "",
+          email: student?.email || "",
+        },
+        theme: {
+          color: "#2563eb",
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+            // User closed the modal without completing payment
+          },
+        },
+        handler: async (response: {
+          razorpay_payment_id: string;
+          razorpay_order_id: string;
+          razorpay_signature: string;
+        }) => {
+          setLoading(false);
+          setVerifying(true);
+          setError(null);
+
+          try {
+            // 3. Verify payment authoritatively on the server
+            const verifyRes = await fetch("/api/payment/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              }),
+            });
+
+            const verifyData = await verifyRes.json().catch(() => ({}));
+            if (!verifyRes.ok) {
+              throw new Error(verifyData.error || "Payment verification failed on the server.");
+            }
+
+            setEnrollmentResult({ subscriptionId: verifyData.subscriptionId });
+          } catch (verifyErr: any) {
+            setError(verifyErr.message || "Payment verification failed. Please contact support.");
+          } finally {
+            setVerifying(false);
+          }
+        },
+      };
+
+      const rzpInstance = new window.Razorpay(options);
+      rzpInstance.on("payment.failed", (failResponse: any) => {
+        setLoading(false);
+        setError(
+          failResponse.error?.description || "Payment failed at gateway. Please try with another payment method."
+        );
+      });
+
+      rzpInstance.open();
+    } catch (err: any) {
+      setError(err.message || "Payment initiation failed. Please try again.");
       setLoading(false);
     }
   };
 
-  if (paymentSuccess) {
+  if (enrollmentResult) {
     return (
-      <div className="max-w-xl mx-auto my-12 bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-lg space-y-5">
+      <div className="max-w-xl mx-auto my-12 bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-lg space-y-5 animate-in fade-in duration-200">
         <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
           <CheckCircle2 className="w-9 h-9" />
         </div>
         <div className="space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Payment Captured & Reconciled</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Payment Confirmed</span>
           <h2 className="text-2xl font-extrabold text-slate-900">Enrolled Successfully!</h2>
           <p className="text-sm text-slate-500">
-            Payment Ref: <strong>#PAY_RZP_{Math.random().toString(36).substring(2, 9).toUpperCase()}</strong>.
-            Your selected mock tests have been unlocked and activated on your student dashboard.
+            Subscription Ref: <strong className="font-mono text-xs">{enrollmentResult.subscriptionId}</strong>.
+            Your selected mock tests have been unlocked on your student dashboard.
           </p>
         </div>
 
-        <div className="p-4 bg-slate-50 rounded-xl text-left text-xs space-y-1.5 border border-slate-100">
+        <div className="p-4 bg-slate-50 rounded-xl text-left text-xs space-y-2 border border-slate-100">
           <div className="flex justify-between text-slate-600">
-            <span>Tests Unlocked:</span>
-            <span className="font-semibold text-slate-800">{selectedItems.length} Mock Test{selectedItems.length > 1 ? "s" : ""}</span>
+            <span>Access Tier:</span>
+            <span className="font-semibold text-slate-800">All-India Mock Test Series</span>
           </div>
           <div className="flex justify-between text-slate-600">
-            <span>Total Paid:</span>
-            <span className="font-semibold text-slate-800">₹{(total / 100).toFixed(2)}</span>
+            <span>Tests Included:</span>
+            <span className="font-semibold text-slate-800">{selectedItems.length} Selected Test{selectedItems.length > 1 ? "s" : ""} + Full Series</span>
           </div>
           <div className="flex justify-between text-slate-600">
-            <span>Validity:</span>
-            <span className="font-semibold text-emerald-600">1 Year (Exam Season 2026-27)</span>
+            <span>Amount Paid:</span>
+            <span className="font-semibold text-slate-800">₹{planPriceInr}.00</span>
+          </div>
+          <div className="flex justify-between text-slate-600">
+            <span>Validity Period:</span>
+            <span className="font-semibold text-emerald-600">30 Days Full Access</span>
           </div>
         </div>
 
@@ -140,40 +236,49 @@ function CheckoutContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Order Summary & Payment Gateway</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Secure Checkout & Enrollment</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Review your selected mock test series and complete secure checkout.
+          Review your selected mock test series and complete enrollment via Razorpay Test Mode.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left: Cart items & Gateway selection */}
-        <div className="lg:col-span-7 space-y-6">
-          {/* Selected items */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left: Test Selection List */}
+        <div className="lg:col-span-7 space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
-            <h2 className="text-base font-bold text-slate-900">Selected Mock Test Series ({selectedItems.length})</h2>
+            <h2 className="text-base font-bold text-slate-900">Selected Mock Test Series</h2>
 
             {selectedItems.length === 0 ? (
-              <div className="text-center py-8 text-slate-500 text-sm">
-                Your cart is empty. <Link href="/tests" className="text-blue-600 underline">Browse mock tests</Link>.
+              <div className="py-8 text-center text-sm text-slate-500">
+                <p>No tests selected yet.</p>
+                <Link
+                  href="/tests"
+                  className="mt-3 inline-flex items-center gap-1.5 text-blue-600 hover:underline font-semibold text-xs"
+                >
+                  Browse Mock Test Catalog
+                </Link>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {selectedItems.map((item) => (
-                  <div key={item.id} className="py-4 flex items-center justify-between gap-4 first:pt-0 last:pb-0">
-                    <div>
-                      <h4 className="font-semibold text-slate-900 text-sm">{item.title}</h4>
-                      <p className="text-xs text-slate-500">{item.examName} • {item.totalQuestions} Questions • {item.durationMinutes} mins</p>
+                {selectedItems.map((test) => (
+                  <div key={test.id} className="py-3.5 flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <h3 className="font-semibold text-sm text-slate-800">{test.title}</h3>
+                      <div className="flex items-center gap-3 text-xs text-slate-500">
+                        <span className="font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                          {test.examName}
+                        </span>
+                        <span>{test.durationMinutes} mins</span>
+                        <span>•</span>
+                        <span>{test.totalQuestions} Questions</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="font-bold text-slate-900 text-sm">
-                        ₹{((item.discountedPricePaise || item.pricePaise) / 100).toFixed(0)}
-                      </span>
+                    <div className="flex items-center gap-3">
                       {selectedItems.length > 1 && (
                         <button
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => removeItem(test.id)}
                           className="p-1 text-slate-400 hover:text-red-600 transition"
                           title="Remove item"
                         >
@@ -187,64 +292,22 @@ function CheckoutContent() {
             )}
           </div>
 
-          {/* Payment Method Selector */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
-            <h2 className="text-base font-bold text-slate-900">Select Payment Method</h2>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <label 
-                onClick={() => setGateway("RAZORPAY")}
-                className={`p-4 rounded-xl border-2 flex flex-col justify-between cursor-pointer transition ${
-                  gateway === "RAZORPAY" 
-                    ? "border-blue-600 bg-blue-50/50" 
-                    : "border-slate-200 hover:border-slate-300 bg-white"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <CreditCard className={`w-5 h-5 ${gateway === "RAZORPAY" ? "text-blue-600" : "text-slate-400"}`} />
-                  {gateway === "RAZORPAY" && <span className="w-2 h-2 rounded-full bg-blue-600"></span>}
-                </div>
-                <div className="mt-3">
-                  <div className="text-sm font-bold text-slate-900">Razorpay</div>
-                  <div className="text-[11px] text-slate-500">Cards, Netbanking, UPI</div>
-                </div>
-              </label>
+          {/* Plan Entitlement details */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-900">Entitlement Plan</h2>
+              <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                All-India Mock Series Pass
+              </span>
+            </div>
 
-              <label 
-                onClick={() => setGateway("UPI")}
-                className={`p-4 rounded-xl border-2 flex flex-col justify-between cursor-pointer transition ${
-                  gateway === "UPI" 
-                    ? "border-blue-600 bg-blue-50/50" 
-                    : "border-slate-200 hover:border-slate-300 bg-white"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <QrCode className={`w-5 h-5 ${gateway === "UPI" ? "text-blue-600" : "text-slate-400"}`} />
-                  {gateway === "UPI" && <span className="w-2 h-2 rounded-full bg-blue-600"></span>}
-                </div>
-                <div className="mt-3">
-                  <div className="text-sm font-bold text-slate-900">Instant UPI</div>
-                  <div className="text-[11px] text-slate-500">GPay, PhonePe, Paytm QR</div>
-                </div>
-              </label>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Provides <strong>30 days of full, proctored computer-based test (CBT) access</strong> to your selected mock tests and all-India percentile analytics. If you already have active access, your expiration date will be extended safely by 30 days.
+            </p>
 
-              <label 
-                onClick={() => setGateway("STRIPE")}
-                className={`p-4 rounded-xl border-2 flex flex-col justify-between cursor-pointer transition ${
-                  gateway === "STRIPE" 
-                    ? "border-blue-600 bg-blue-50/50" 
-                    : "border-slate-200 hover:border-slate-300 bg-white"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <Lock className={`w-5 h-5 ${gateway === "STRIPE" ? "text-blue-600" : "text-slate-400"}`} />
-                  {gateway === "STRIPE" && <span className="w-2 h-2 rounded-full bg-blue-600"></span>}
-                </div>
-                <div className="mt-3">
-                  <div className="text-sm font-bold text-slate-900">International</div>
-                  <div className="text-[11px] text-slate-500">Stripe Global Cards</div>
-                </div>
-              </label>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 flex items-center justify-between text-xs">
+              <span className="text-slate-600">Access Duration</span>
+              <span className="font-bold text-slate-800">30 Days</span>
             </div>
           </div>
         </div>
@@ -256,41 +319,52 @@ function CheckoutContent() {
 
             <div className="space-y-3 text-sm text-slate-600 border-b border-slate-100 pb-4">
               <div className="flex justify-between">
-                <span>Subtotal ({selectedItems.length} Tests)</span>
-                <span className="font-semibold text-slate-900">₹{(subtotal / 100).toFixed(2)}</span>
+                <span>All-India Mock Series (30 Days)</span>
+                <span className="font-semibold text-slate-900">₹{planPriceInr}.00</span>
               </div>
               <div className="flex justify-between">
-                <span>GST (18% Educational Content)</span>
-                <span className="font-semibold text-slate-900">₹{(gst / 100).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-emerald-600 font-medium">
-                <span>Platform Discount</span>
-                <span>- ₹0.00</span>
+                <span>Inclusive of Taxes (GST)</span>
+                <span className="font-semibold text-slate-900">₹0.00</span>
               </div>
             </div>
 
             <div className="flex justify-between text-base font-extrabold text-slate-900 pt-1">
               <span>Total Payable</span>
-              <span>₹{(total / 100).toFixed(2)}</span>
+              <span>₹{planPriceInr}.00</span>
             </div>
 
             <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl flex items-start gap-2.5 text-xs text-blue-800">
               <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
               <span>
-                128-bit SSL encrypted transaction. Instant webhook reconciliation with automated invoice delivery.
+                Secured by Razorpay. Official 128-bit SSL encrypted test-mode transaction.
               </span>
             </div>
 
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
             <button
-              onClick={handleProcessPayment}
-              disabled={loading || selectedItems.length === 0}
-              className="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold text-sm shadow-md transition flex items-center justify-center gap-2"
+              onClick={handleStartRazorpayCheckout}
+              disabled={loading || verifying || selectedItems.length === 0}
+              className="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading ? (
-                <span>Connecting with {gateway} Secure Gateway...</span>
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Preparing Checkout...</span>
+                </>
+              ) : verifying ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Verifying Payment...</span>
+                </>
               ) : (
                 <>
-                  <span>Pay ₹{(total / 100).toFixed(2)} via {gateway}</span>
+                  <span>Pay ₹{planPriceInr}.00 with Razorpay</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

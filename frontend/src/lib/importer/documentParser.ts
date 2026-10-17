@@ -1,6 +1,5 @@
-// @ts-ignore
 import mammoth from "mammoth";
-// @ts-ignore
+// @ts-expect-error missing type definitions for pdf-parse internal lib
 import pdfParse from "pdf-parse/lib/pdf-parse.js";
 
 export interface ExtractedOption {
@@ -84,9 +83,9 @@ export function parseDocumentContent(rawText: string, defaultTitle?: string): Ex
   let title = defaultTitle || "AIBE Mock Test 1";
   let examType = "AIBE";
   let durationMinutes = 210; // Default 3h 30m for AIBE
-  let totalQuestions = 100;
-  let totalMarks = 100;
-  let positiveMarks = 1;
+  const totalQuestions = 100;
+  const totalMarks = 100;
+  const positiveMarks = 1;
   let negativeMarks = 0;
   const instructions: string[] = [];
 
@@ -147,7 +146,7 @@ export function parseDocumentContent(rawText: string, defaultTitle?: string): Ex
   // Explanations section header (standalone line)
   const explanationHeaderRegex = /(?:^|\n)\s*(?:ANSWERS?\s*(?:WITH\s*)?EXPLANATIONS?|DETAILED\s*EXPLANATIONS?|HINTS?\s*&?\s*SOLUTIONS?|SOLUTIONS?\s*&?\s*EXPLANATIONS?)\s*(?:\r?\n|$)/i;
 
-  let searchAfter = questionsStartIndex;
+  const searchAfter = questionsStartIndex;
   let answerKeyIndex = -1;
   const akMatch = cleanedText.slice(searchAfter).match(answerKeyHeaderRegex);
   if (akMatch && akMatch.index !== undefined) {

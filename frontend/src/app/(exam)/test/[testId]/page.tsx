@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ExamEngine from "@/components/exam/ExamEngine";
 import { ShieldCheck, AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
-import type { MockQuestion } from "@/lib/mockExamData";
+import type { CbtQuestion } from "@/types";
 
 interface AttemptInitData {
   attemptId: string;
@@ -13,7 +13,7 @@ interface AttemptInitData {
   examName: string;
   durationMinutes: number;
   remainingSeconds: number;
-  questions: MockQuestion[];
+  questions: CbtQuestion[];
   savedAnswers: Record<string, string>;
 }
 

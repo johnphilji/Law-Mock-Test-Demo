@@ -71,10 +71,14 @@ export async function GET() {
     }
 
     const enrolledCount = enrolledTests.length;
-    const testsAttempted = attempts.length;
+    
+    // Distinguish between distinct mock tests completed vs total attempt sessions
+    const completedAttempts = attempts.filter((a: any) => a.status === "SUBMITTED" || a.status === "AUTO_SUBMITTED");
+    const distinctTestsAttempted = new Set(completedAttempts.map((a: any) => a.testId)).size;
+    const totalAttemptSessions = attempts.length;
 
-    // Percentile & accuracy calculation based strictly on real submitted attempts
-    const submittedAttempts = attempts.filter((a: any) => a.status === "SUBMITTED" && a.percentage !== null);
+    // Percentile & accuracy calculation based strictly on real submitted/completed attempts
+    const submittedAttempts = attempts.filter((a: any) => (a.status === "SUBMITTED" || a.status === "AUTO_SUBMITTED") && a.percentage !== null);
     
     let averageAccuracy: number | null = null;
     let allIndiaPercentile: number | null = null;
@@ -82,12 +86,29 @@ export async function GET() {
     if (submittedAttempts.length > 0) {
       const totalPct = submittedAttempts.reduce((acc: number, curr: any) => acc + Number(curr.percentage || 0), 0);
       averageAccuracy = Math.round((totalPct / submittedAttempts.length) * 10) / 10;
-      allIndiaPercentile = averageAccuracy;
+
+      // Real percentile against all candidate attempts across the platform
+      const allPlatformAttempts = await prisma.attempt.findMany({
+        where: { 
+          status: { in: ["SUBMITTED", "AUTO_SUBMITTED"] },
+          percentage: { not: null } 
+        },
+        select: { percentage: true },
+      });
+
+      if (allPlatformAttempts.length >= 2) {
+        const candidateAvgPct = totalPct / submittedAttempts.length;
+        const belowCount = allPlatformAttempts.filter((a) => Number(a.percentage || 0) < candidateAvgPct).length;
+        allIndiaPercentile = Math.round((belowCount / allPlatformAttempts.length) * 100);
+      } else {
+        allIndiaPercentile = null;
+      }
     }
 
     return NextResponse.json({
       stats: {
-        testsAttempted,
+        testsAttempted: distinctTestsAttempted,
+        totalSessions: totalAttemptSessions,
         enrolledCount,
         allIndiaPercentile,
         averageAccuracy,

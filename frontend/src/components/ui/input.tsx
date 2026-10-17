@@ -66,7 +66,7 @@ Input.displayName = "Input";
 // PASSWORD INPUT
 // =============================================================================
 
-export interface PasswordInputProps extends Omit<InputProps, "type"> {}
+export type PasswordInputProps = Omit<InputProps, "type">;
 
 const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
   ({ className, label, error, hint, id, required, ...props }, ref) => {

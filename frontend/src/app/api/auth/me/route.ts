@@ -18,8 +18,17 @@ export async function GET() {
       phone: true,
       role: true,
       isActive: true,
+      isEmailVerified: true,
+      isPhoneVerified: true,
+      passwordHash: true,
       createdAt: true,
       lastLoginAt: true,
+      accounts: {
+        select: {
+          id: true,
+          provider: true,
+        },
+      },
     },
   });
 
@@ -34,6 +43,13 @@ export async function GET() {
       email: user.email,
       phone: user.phone,
       role: user.role,
+      isEmailVerified: user.isEmailVerified,
+      isPhoneVerified: user.isPhoneVerified,
+      hasPassword: Boolean(user.passwordHash),
+      linkedAccounts: (user.accounts || []).map((acc: { id: string; provider: string }) => ({
+        id: acc.id,
+        provider: acc.provider,
+      })),
       createdAt: user.createdAt,
       lastLoginAt: user.lastLoginAt,
     },
