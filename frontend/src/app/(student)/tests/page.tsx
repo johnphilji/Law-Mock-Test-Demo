@@ -9,7 +9,8 @@ import {
   Check, 
   ShieldCheck, 
   Zap,
-  BookOpen
+  BookOpen,
+  ArrowRight
 } from "lucide-react";
 
 interface TestItem {
@@ -22,6 +23,7 @@ interface TestItem {
   pricePaise: number;
   discountedPricePaise: number | null;
   isFree?: boolean;
+  isPurchased?: boolean;
 }
 
 export default function StudentTestsCatalog() {
@@ -156,36 +158,59 @@ export default function StudentTestsCatalog() {
 
                 <div className="bg-slate-50/70 p-5 border-t border-slate-100 flex items-center justify-between">
                   <div>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-xl font-extrabold text-slate-900">
-                        {test.isFree ? "FREE" : `₹${price}`}
-                      </span>
-                      {test.discountedPricePaise && (
-                        <span className="text-xs text-slate-400 line-through">₹{originalPrice}</span>
-                      )}
-                    </div>
-                    <span className="text-[10px] text-slate-500 font-medium">Inclusive of all taxes</span>
+                    {test.isPurchased ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                          Enrolled & Active
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-xl font-extrabold text-slate-900">
+                            {test.isFree ? "FREE" : `₹${price}`}
+                          </span>
+                          {test.discountedPricePaise && (
+                            <span className="text-xs text-slate-400 line-through">₹{originalPrice}</span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-medium">Inclusive of all taxes</span>
+                      </>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => toggleCart(test.id)}
-                      className={`px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
-                        inCart
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      <ShoppingCart className="w-3.5 h-3.5" />
-                      {inCart ? "In Cart" : "Add"}
-                    </button>
+                    {test.isPurchased ? (
+                      <Link
+                        href={`/test/${test.id}`}
+                        className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm shadow-blue-500/20 transition flex items-center gap-1.5"
+                      >
+                        <span>Start Test</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => toggleCart(test.id)}
+                          className={`px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
+                            inCart
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+                          }`}
+                        >
+                          <ShoppingCart className="w-3.5 h-3.5" />
+                          {inCart ? "In Cart" : "Add"}
+                        </button>
 
-                    <Link
-                      href={test.isFree ? `/test/${test.id}` : `/checkout?testId=${test.id}`}
-                      className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition"
-                    >
-                      {test.isFree ? "Start Test" : "Buy Now"}
-                    </Link>
+                        <Link
+                          href={test.isFree ? `/test/${test.id}` : `/checkout?testId=${test.id}`}
+                          className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition"
+                        >
+                          {test.isFree ? "Start Test" : "Buy Now"}
+                        </Link>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

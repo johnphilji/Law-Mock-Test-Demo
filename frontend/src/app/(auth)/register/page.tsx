@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/components";
 import { PASSWORD_MIN_LENGTH } from "@/lib/constants";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
 import { OtpVerificationDialog } from "@/components/auth/OtpVerificationDialog";
+import { ArrowLeft } from "lucide-react";
 
 function PasswordStrength({ password }: { password: string }) {
   const checks = useMemo(() => {
@@ -239,6 +240,17 @@ export default function RegisterPage() {
       {/* Right panel — Registration form */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10 bg-muted">
         <div className="w-full max-w-[440px]">
+          {/* Back to Home Navigation */}
+          <div className="mb-4 flex items-center justify-between">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition group"
+            >
+              <ArrowLeft className="w-4 h-4 text-slate-400 group-hover:-translate-x-0.5 transition-transform" />
+              <span>Back to Home</span>
+            </Link>
+          </div>
+
           {/* Mobile branding */}
           <div className="lg:hidden flex items-center gap-2.5 mb-8">
             <div className="w-8 h-8 bg-brand-800 rounded flex items-center justify-center">
