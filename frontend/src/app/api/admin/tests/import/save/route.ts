@@ -24,113 +24,125 @@ export async function POST(request: NextRequest) {
     const slug = `${baseSlug}-${Date.now().toString(36)}`;
 
     // Generate unique slug for exam
-    const examSlug = metadata.examType
+    const examName = metadata.examType || "Law Entrance";
+    const examSlug = examName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
+      .replace(/^-|-$/g, "") || "law-entrance";
 
     // Transactional save: creates Exam, Subject, Test, Question, QuestionVersion, and TestQuestion atomically
-    const savedTest = await prisma.$transaction(async (tx) => {
-      // 1. Find or create the Exam category
-      let exam = await tx.exam.findFirst({
-        where: {
-          OR: [
-            { slug: examSlug },
-            { name: { equals: metadata.examType, mode: "insensitive" } },
-          ],
-        },
-      });
-
-      if (!exam) {
-        exam = await tx.exam.create({
-          data: {
-            name: metadata.examType,
-            slug: examSlug,
-            description: `${metadata.examType} Law Entrance Preparation`,
-            isActive: true,
+    // For 100 questions (500+ DB inserts), default 5s Prisma transaction timeout causes "Transaction API error: Transaction already closed" / Internal server error.
+    const savedTest = await prisma.$transaction(
+      async (tx) => {
+        // 1. Find or create the Exam category
+        let exam = await tx.exam.findFirst({
+          where: {
+            OR: [
+              { slug: examSlug },
+              { name: { equals: examName, mode: "insensitive" } },
+            ],
           },
         });
-      }
 
-      // 2. Find or create default Subject for this Exam
-      let defaultSubject = await tx.subject.findFirst({
-        where: { examId: exam.id },
-      });
-
-      if (!defaultSubject) {
-        defaultSubject = await tx.subject.create({
-          data: {
-            examId: exam.id,
-            name: "Law Core",
-            slug: "law-core",
-            displayOrder: 1,
-            isActive: true,
-          },
-        });
-      }
-
-      // 3. Check if a test with the same title already exists in this exam
-      const existingTest = await tx.test.findFirst({
-        where: {
-          examId: exam.id,
-          title: { equals: metadata.title, mode: "insensitive" },
-        },
-        include: {
-          _count: { select: { attempts: true, questions: true } },
-        },
-      });
-
-      let test;
-      if (existingTest) {
-        // If test exists and already has questions, reuse it without duplicating questions
-        if (existingTest._count.questions >= questions.length) {
-          await tx.test.update({
-            where: { id: existingTest.id },
+        if (!exam) {
+          exam = await tx.exam.create({
             data: {
-              status: status === "PUBLISHED" ? "PUBLISHED" : existingTest.status,
-              publishedAt: status === "PUBLISHED" && !existingTest.publishedAt ? new Date() : existingTest.publishedAt,
-              durationMinutes: Number(metadata.durationMinutes) || existingTest.durationMinutes,
-              totalMarks: Number(metadata.totalMarks) || existingTest.totalMarks,
-              negativeMarking: Number(metadata.negativeMarks) || existingTest.negativeMarking,
+              name: examName,
+              slug: examSlug,
+              description: `${examName} Law Entrance Preparation`,
+              isActive: true,
             },
           });
-          return existingTest;
         }
 
-        // If existing test had 0 attempts, we can clean up old questions and reload
-        if (existingTest._count.attempts === 0) {
-          await tx.testQuestion.deleteMany({ where: { testId: existingTest.id } });
+        // 2. Find or create default Subject for this Exam
+        let defaultSubject = await tx.subject.findFirst({
+          where: { examId: exam.id },
+        });
+
+        if (!defaultSubject) {
+          defaultSubject = await tx.subject.create({
+            data: {
+              examId: exam.id,
+              name: "Law Core",
+              slug: "law-core",
+              displayOrder: 1,
+              isActive: true,
+            },
+          });
         }
-        test = existingTest;
-      } else {
-        test = await tx.test.create({
-          data: {
+
+        // 3. Check if a test with the same title already exists in this exam
+        const existingTest = await tx.test.findFirst({
+          where: {
             examId: exam.id,
-            title: metadata.title,
-            slug,
-            description: `Comprehensive ${metadata.examType} Mock Test containing ${questions.length} questions.`,
-            instructions: metadata.instructions?.join("\n") || "Standard Computer-Based Test (CBT) examination rules apply.",
-            type: "MOCK",
-            status: status === "PUBLISHED" ? "PUBLISHED" : "DRAFT",
-            publishedAt: status === "PUBLISHED" ? new Date() : null,
-            durationMinutes: Number(metadata.durationMinutes) || 120,
-            totalMarks: Number(metadata.totalMarks) || questions.length,
-            negativeMarking: Number(metadata.negativeMarks) || 0,
-            createdBy: admin.id,
+            title: { equals: metadata.title, mode: "insensitive" },
+          },
+          include: {
+            _count: { select: { attempts: true, questions: true } },
           },
         });
-      }
 
-      // 4. Create Questions and QuestionVersions
-      for (let i = 0; i < questions.length; i++) {
-        const q = questions[i];
+        let test;
+        if (existingTest) {
+          // If test exists and already has questions, reuse it without duplicating questions
+          if (existingTest._count.questions >= questions.length) {
+            await tx.test.update({
+              where: { id: existingTest.id },
+              data: {
+                status: status === "PUBLISHED" ? "PUBLISHED" : existingTest.status,
+                publishedAt: status === "PUBLISHED" && !existingTest.publishedAt ? new Date() : existingTest.publishedAt,
+                durationMinutes: Number(metadata.durationMinutes) || existingTest.durationMinutes,
+                totalMarks: Number(metadata.totalMarks) || existingTest.totalMarks,
+                negativeMarking: Number(metadata.negativeMarks) || existingTest.negativeMarking,
+              },
+            });
+            return existingTest;
+          }
 
-        const rawOptions = (q.options || []).map((opt: any, optIdx: number) => ({
-          optionKey: (opt.key || String.fromCharCode(65 + optIdx)).toUpperCase(),
-          optionText: opt.text || "",
-          isCorrect: opt.isCorrect ?? (opt.key === q.correctOptionKey),
-          displayOrder: optIdx + 1,
-        }));
+          // If existing test had 0 attempts, we can clean up old questions and reload
+          if (existingTest._count.attempts === 0) {
+            await tx.testQuestion.deleteMany({ where: { testId: existingTest.id } });
+          }
+          test = existingTest;
+        } else {
+          test = await tx.test.create({
+            data: {
+              examId: exam.id,
+              title: metadata.title,
+              slug,
+              description: `Comprehensive ${examName} Mock Test containing ${questions.length} questions.`,
+              instructions: metadata.instructions?.join("\n") || "Standard Computer-Based Test (CBT) examination rules apply.",
+              type: "MOCK",
+              status: status === "PUBLISHED" ? "PUBLISHED" : "DRAFT",
+              publishedAt: status === "PUBLISHED" ? new Date() : null,
+              durationMinutes: Number(metadata.durationMinutes) || 120,
+              totalMarks: Number(metadata.totalMarks) || questions.length,
+              negativeMarking: Number(metadata.negativeMarks) || 0,
+              createdBy: admin.id,
+            },
+          });
+        }
+
+        // 4. Create Questions and QuestionVersions
+        for (let i = 0; i < questions.length; i++) {
+          const q = questions[i];
+
+          const seenKeys = new Set<string>();
+          const rawOptions = (q.options || []).map((opt: any, optIdx: number) => {
+            let key = (opt.key || String.fromCharCode(65 + optIdx)).trim().toUpperCase();
+            if (!key || seenKeys.has(key)) {
+              key = String.fromCharCode(65 + optIdx);
+            }
+            seenKeys.add(key);
+
+            return {
+              optionKey: key,
+              optionText: opt.text || "",
+              isCorrect: opt.isCorrect ?? (opt.key === q.correctOptionKey || key === q.correctOptionKey),
+              displayOrder: optIdx + 1,
+            };
+          });
 
         const question = await tx.question.create({
           data: {
@@ -169,6 +181,10 @@ export async function POST(request: NextRequest) {
       }
 
       return test;
+    },
+    {
+      maxWait: 15000, // 15 seconds to acquire connection from pool
+      timeout: 60000, // 60 seconds to execute all 100 questions inserts
     });
 
     return NextResponse.json({
@@ -181,6 +197,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("Transactional test import save failed:", error);
-    return handleAuthError(error);
+    if (error?.name === "AuthError") {
+      return handleAuthError(error);
+    }
+    return NextResponse.json(
+      { error: error?.message || "Failed to save mock test into database" },
+      { status: 500 }
+    );
   }
 }
