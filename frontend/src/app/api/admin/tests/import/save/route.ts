@@ -7,6 +7,7 @@ export async function POST(request: NextRequest) {
     const admin = await requireAdmin();
     const body = await request.json();
     const { metadata, questions, status = "DRAFT" } = body;
+    console.log(`[ImportSave] Admin: ${admin.email}, Questions: ${questions?.length}, Title: ${metadata?.title}, Status: ${status}`);
 
     if (!metadata || !metadata.title) {
       return NextResponse.json({ error: "Exam metadata and title are required" }, { status: 400 });
