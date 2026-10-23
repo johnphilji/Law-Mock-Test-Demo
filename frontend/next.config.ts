@@ -7,6 +7,9 @@ import type { NextConfig } from "next";
  * are configured here. Business logic lives in services, not here.
  */
 const nextConfig: NextConfig = {
+  // Output build artifacts to the root .next directory so Vercel locates it at /vercel/path0/.next
+  distDir: "../.next",
+
   // Strict React mode — catches side-effects and deprecated patterns early.
   reactStrictMode: true,
 
