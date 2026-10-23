@@ -201,10 +201,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      testId: savedTest.id,
-      slug: savedTest.slug,
-      title: savedTest.title,
-      status: savedTest.status,
+      testId: test.id,
+      slug: test.slug,
+      title: test.title,
+      status: test.status,
       questionCount: questions.length,
     });
   } catch (error: any) {
